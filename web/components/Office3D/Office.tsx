@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AgentState } from "@/lib/types";
 import { Scene } from "./Scene";
 import { AllDesks } from "./DeskProp";
 import { CharacterModel } from "./CharacterModel";
+import { LabelOverlay } from "./LabelOverlay";
 import { supportsWebGL } from "./supportsWebGL";
 
 export function Office({ agents }: { agents: Record<string, AgentState> }) {
   const [webglOk, setWebglOk] = useState<boolean | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setWebglOk(supportsWebGL());
@@ -30,7 +32,7 @@ export function Office({ agents }: { agents: Record<string, AgentState> }) {
   }
 
   return (
-    <div className="rounded-lg border border-amber-200 overflow-hidden h-[440px]">
+    <div ref={containerRef} className="relative rounded-lg border border-amber-200 overflow-hidden h-[440px]">
       <Scene>
         <AllDesks />
         {entries.map((agent) => {
@@ -41,6 +43,7 @@ export function Office({ agents }: { agents: Record<string, AgentState> }) {
           );
         })}
       </Scene>
+      <LabelOverlay agents={agents} containerRef={containerRef} />
     </div>
   );
 }

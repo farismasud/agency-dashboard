@@ -3,19 +3,17 @@
 import { Component, Suspense, useLayoutEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Clone, Html, useGLTF } from "@react-three/drei";
+import { Clone, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import type { AgentState } from "@/lib/types";
 import {
   ROLE_SPRITE,
   ROLE_RING_COLOR,
-  ROLE_LABEL,
   DESK_POS,
   BREAK_SLOTS,
   DEFAULT_POS,
   DEFAULT_SPRITE,
   DEFAULT_RING_COLOR,
-  DEFAULT_LABEL,
   SEAT_OFFSET_Z,
 } from "./layout";
 
@@ -28,9 +26,10 @@ const MODEL_URLS = {
 
 // Where a character should be for the given agent - the chair position when
 // working (desk position + SEAT_OFFSET_Z), or its assigned break slot when
-// idle. Shared by the initial-position effect and the per-frame lerp so both
-// agree on the target.
-function getTargetXZ(agent: AgentState, breakSlotIndex: number): [number, number] {
+// idle. Shared by the initial-position effect, the per-frame lerp, and
+// LabelOverlay (which projects this same target to screen space for the
+// name/status label, rendered outside the Canvas - see LabelOverlay.tsx).
+export function getTargetXZ(agent: AgentState, breakSlotIndex: number): [number, number] {
   if (agent.status === "working") {
     const [deskX, deskZ] = DESK_POS[agent.subagent_type] ?? DEFAULT_POS;
     return [deskX, deskZ + SEAT_OFFSET_Z];
@@ -80,7 +79,6 @@ export function CharacterModel({
 
   const sprite = ROLE_SPRITE[agent.subagent_type] ?? DEFAULT_SPRITE;
   const ringColor = ROLE_RING_COLOR[agent.subagent_type] ?? DEFAULT_RING_COLOR;
-  const roleLabel = ROLE_LABEL[agent.subagent_type] ?? DEFAULT_LABEL;
   const working = agent.status === "working";
 
   // Place the character at its target immediately on mount, instead of
@@ -126,20 +124,6 @@ export function CharacterModel({
           <CharacterMesh sprite={sprite} />
         </Suspense>
       </ModelErrorBoundary>
-
-      <Html position={[0, 1.2, 0]} center distanceFactor={10}>
-        <div className="flex flex-col items-center pointer-events-none select-none">
-          {working && (
-            <div className="mb-1 max-w-[140px] rounded bg-white/95 px-2 py-1 text-[11px] text-neutral-800 shadow truncate border border-neutral-200">
-              {agent.last_action || "Kerja..."}
-            </div>
-          )}
-          <div className="text-[10px] font-medium text-neutral-700 bg-white/80 px-1 rounded">
-            {agent.display_name} · {roleLabel}
-          </div>
-          {!working && <div className="text-[10px] text-neutral-500">☕ Istirahat</div>}
-        </div>
-      </Html>
     </group>
   );
 }
