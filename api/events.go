@@ -31,8 +31,3 @@ func postEventsHandler(store *Store, hub *Hub) gin.HandlerFunc {
 		c.Status(http.StatusNoContent)
 	}
 }
-
-// Temporary stub; replaced by the real Hub in Task 5.
-type Hub struct{}
-
-func (h *Hub) BroadcastRoom(room *RoomState) {}
