@@ -30,6 +30,19 @@ func NewHub() *Hub {
 	return &Hub{clients: make(map[*client]bool)}
 }
 
+// removeClient deletes cl from the hub and closes its send channel
+// atomically under h.mu, so BroadcastRoom can never observe a client that
+// is mid-removal: it either sees the client (still open) or doesn't see it
+// at all (already removed+closed). Safe to call more than once.
+func (h *Hub) removeClient(cl *client) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if _, ok := h.clients[cl]; ok {
+		delete(h.clients, cl)
+		close(cl.send)
+	}
+}
+
 func (h *Hub) BroadcastRoom(room *RoomState) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -65,9 +78,7 @@ func (h *Hub) ServeWS(store *Store) gin.HandlerFunc {
 		h.mu.Unlock()
 
 		defer func() {
-			h.mu.Lock()
-			delete(h.clients, cl)
-			h.mu.Unlock()
+			h.removeClient(cl)
 			conn.Close()
 		}()
 
@@ -87,7 +98,6 @@ func (h *Hub) ServeWS(store *Store) gin.HandlerFunc {
 
 		for {
 			if _, _, err := conn.ReadMessage(); err != nil {
-				close(cl.send)
 				return
 			}
 		}

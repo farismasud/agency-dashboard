@@ -8,11 +8,22 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func main() {
-	store := NewStore()
-	hub := NewHub()
-	startIdleTicker(store, hub)
+const frontendOrigin = "http://localhost:3090"
 
+func corsMiddleware(c *gin.Context) {
+	c.Header("Access-Control-Allow-Origin", frontendOrigin)
+	c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	c.Header("Access-Control-Allow-Headers", "Content-Type")
+	if c.Request.Method == "OPTIONS" {
+		c.AbortWithStatus(204)
+		return
+	}
+	c.Next()
+}
+
+// newRouter builds the full route table. Split out from main() so tests can
+// exercise routes/middleware via httptest without binding a real port.
+func newRouter(store *Store, hub *Hub) *gin.Engine {
 	var watchedMu sync.Mutex
 	watched := make(map[string]bool)
 	ensureWatched := func(project string) {
@@ -31,6 +42,7 @@ func main() {
 	}
 
 	r := gin.Default()
+	r.Use(corsMiddleware)
 
 	r.POST("/events", func(c *gin.Context) {
 		var payload EventPayload
@@ -52,6 +64,16 @@ func main() {
 	r.GET("/rooms", getRoomsHandler(store))
 	r.GET("/rooms/snapshot", getRoomSnapshotHandler(store))
 	r.GET("/ws", hub.ServeWS(store))
+
+	return r
+}
+
+func main() {
+	store := NewStore()
+	hub := NewHub()
+	startIdleTicker(store, hub)
+
+	r := newRouter(store, hub)
 
 	port := os.Getenv("AGENCY_PORT")
 	if port == "" {
