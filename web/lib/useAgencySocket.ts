@@ -37,14 +37,20 @@ export function useAgencySocket(project: string | null): RoomState | null {
       };
 
       ws.onclose = () => {
+        // Stale data (e.g. after a backend restart) is worse than showing
+        // nothing: clear immediately rather than freezing the last state.
+        setRoom(null);
         if (closedByEffect) return;
         reconnectTimer = setTimeout(connect, reconnectDelay.current);
         reconnectDelay.current = Math.min(reconnectDelay.current * 2, 15000);
       };
 
-      ws.onerror = () => {
-        ws?.close();
-      };
+      // No onerror handler: per the WebSocket spec, a connection error
+      // always transitions to closed and fires onclose on its own, which
+      // already handles clearing state and scheduling a reconnect. Calling
+      // ws.close() again from onerror is redundant and was observed to
+      // cause a recursive dispatch loop under repeated connection-refused
+      // errors (fast reconnect against a backend that's still down).
     }
 
     connect();
