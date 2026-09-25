@@ -27,6 +27,11 @@ export const DESK_POS: Record<string, [number, number]> = {
   qa: [4.5, 1],
 };
 
+// Offset (in +z, toward camera) from a desk's [x,z] to where a working
+// character should stand - matches DeskProp's chair position, so the
+// character stands at the chair instead of overlapping the desk box.
+export const SEAT_OFFSET_Z = 0.9;
+
 export const BREAK_SLOTS: [number, number][] = [
   [-1, 3.2],
   [0, 3.2],
