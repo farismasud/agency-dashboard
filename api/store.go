@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"sync"
 	"time"
 )
@@ -105,4 +106,46 @@ func IsIdle(lastEventAt, now time.Time, threshold time.Duration) bool {
 		return false // clock skew / future timestamp: treat as active, don't flap
 	}
 	return now.Sub(lastEventAt) >= threshold
+}
+
+func (s *Store) RecordEvent(payload EventPayload) (*RoomState, error) {
+	if payload.Project == "" {
+		return nil, errors.New("project field is required")
+	}
+	if payload.SubagentType == "" {
+		return nil, errors.New("subagent_type field is required")
+	}
+
+	ts, err := time.Parse(time.RFC3339, payload.Timestamp)
+	if err != nil {
+		ts = time.Now()
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	room := s.getOrCreateRoomLocked(payload.Project)
+	name := AssignName(room, payload.SubagentType)
+
+	agent, ok := room.Agents[payload.SubagentType]
+	if !ok {
+		agent = &AgentState{SubagentType: payload.SubagentType, DisplayName: name}
+		room.Agents[payload.SubagentType] = agent
+	}
+	agent.Status = "working"
+	agent.LastAction = payload.Summary
+	agent.LastEventAt = ts
+
+	room.Feed = append(room.Feed, Event{
+		SubagentType: payload.SubagentType,
+		EventType:    payload.EventType,
+		ToolName:     payload.ToolName,
+		Summary:      payload.Summary,
+		Timestamp:    ts,
+	})
+	if len(room.Feed) > maxFeedSize {
+		room.Feed = room.Feed[len(room.Feed)-maxFeedSize:]
+	}
+
+	return cloneRoom(room), nil
 }
