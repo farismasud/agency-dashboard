@@ -79,8 +79,9 @@ func main() {
 	if port == "" {
 		port = "8090"
 	}
-	log.Printf("agency-dashboard backend listening on :%s", port)
-	if err := r.Run(":" + port); err != nil {
+	addr := "127.0.0.1:" + port
+	log.Printf("agency-dashboard backend listening on %s", addr)
+	if err := r.Run(addr); err != nil {
 		log.Fatal(err)
 	}
 }
