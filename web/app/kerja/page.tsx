@@ -12,13 +12,13 @@ export default function KerjaPage() {
   const room = useAgencySocket(project);
 
   return (
-    <main className="p-4 space-y-4">
+    <main className="min-h-screen bg-neutral-50 text-neutral-900 p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Ruang Kerja Tim</h1>
         <RoomSelector selected={project} onSelect={setProject} />
       </div>
 
-      {!project && <div className="text-gray-500">Pilih project untuk lihat aktivitas.</div>}
+      {!project && <div className="text-neutral-500">Pilih project untuk lihat aktivitas.</div>}
 
       {project && (
         <div className="grid grid-cols-[250px_1fr_300px] gap-4">
