@@ -21,10 +21,13 @@ func main() {
 		if watched[project] {
 			return
 		}
-		watched[project] = true
 		if err := WatchRoadmap(store, hub, project); err != nil {
+			// Don't mark as watched on failure (e.g. project dir doesn't
+			// exist yet) — retry on the next event for this project.
 			log.Printf("failed to watch roadmap for %s: %v", project, err)
+			return
 		}
+		watched[project] = true
 	}
 
 	r := gin.Default()
