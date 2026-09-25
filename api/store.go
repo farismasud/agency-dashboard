@@ -31,11 +31,12 @@ type RoadmapModule struct {
 }
 
 type RoomState struct {
-	Project   string                 `json:"project"`
-	Agents    map[string]*AgentState `json:"agents"`
-	Feed      []Event                `json:"feed"`
-	Roadmap   *RoadmapData           `json:"roadmap"`
-	usedNames map[string]bool
+	Project       string                 `json:"project"`
+	Agents        map[string]*AgentState `json:"agents"`
+	Feed          []Event                `json:"feed"`
+	Roadmap       *RoadmapData           `json:"roadmap"`
+	usedNames     map[string]bool
+	assignedNames map[string]string
 }
 
 const maxFeedSize = 200
