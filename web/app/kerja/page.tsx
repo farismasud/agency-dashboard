@@ -1,11 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { RoomSelector } from "@/components/RoomSelector";
-import { Office } from "@/components/Office";
 import { Feed } from "@/components/Feed";
 import { Roadmap } from "@/components/Roadmap";
 import { useAgencySocket } from "@/lib/useAgencySocket";
+
+const Office = dynamic(() => import("@/components/Office").then((mod) => mod.Office), {
+  ssr: false,
+  loading: () => (
+    <div className="rounded-lg border border-amber-200 h-[440px] flex items-center justify-center text-neutral-500 text-sm">
+      Memuat ruangan 3D...
+    </div>
+  ),
+});
 
 export default function KerjaPage() {
   const [project, setProject] = useState<string | null>(null);
