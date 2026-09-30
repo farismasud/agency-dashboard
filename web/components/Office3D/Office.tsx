@@ -13,10 +13,12 @@ export function Office({
   agents,
   onSelectAgent,
   onInteractProp,
+  timeOfDay = "day",
 }: {
   agents: Record<string, AgentState>;
   onSelectAgent?: (agent: AgentState) => void;
   onInteractProp?: (title: string, message: string, icon: string) => void;
+  timeOfDay?: "day" | "night";
 }) {
   const [webglOk, setWebglOk] = useState<boolean | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -43,7 +45,7 @@ export function Office({
 
   return (
     <div ref={containerRef} className="relative w-full h-full overflow-hidden bg-zinc-950 select-none">
-      <Scene onInteractProp={onInteractProp}>
+      <Scene timeOfDay={timeOfDay} onInteractProp={onInteractProp}>
         <AllDesks />
         {entries.map((agent) => (
           <CharacterModel

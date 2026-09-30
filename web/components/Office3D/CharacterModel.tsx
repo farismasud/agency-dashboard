@@ -1,18 +1,11 @@
 "use client";
 
-import { Component, Suspense, useLayoutEffect, useMemo, useRef, useState, useEffect } from "react";
-import type { ReactNode } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
-import { useGLTF, useAnimations, useTexture } from "@react-three/drei";
 import * as THREE from "three";
-import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.js";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import type { AgentState } from "@/lib/types";
-import {
-  ROLE_SPRITE,
-  ROLE_RING_COLOR,
-  DEFAULT_SPRITE,
-  DEFAULT_RING_COLOR,
-} from "./layout";
+import { ROLE_RING_COLOR, DEFAULT_RING_COLOR } from "./layout";
 import {
   getRandomOfficeSpots,
   getDeskSpot,
@@ -20,224 +13,606 @@ import {
   type OfficeSpot,
 } from "./AgentBehavior";
 
-const WALK_SPEED = 1.9; // world units per second
-
-const MODEL_URLS = {
-  male: "/office3d/characters/male.glb",
-  female: "/office3d/characters/female.glb",
-};
-
-const ROLE_SCALES: Record<string, number> = {
-  pm: 1.40,
-  dev: 1.35,
-  qa: 1.32,
-  analyst: 1.30,
-};
+const WALK_SPEED = 2.4; // world units per second
 
 export interface LiveAgentStatus {
   x: number;
   z: number;
+  y?: number;
   rotationY: number;
   isWalking: boolean;
   bubbleText: string;
 }
 
-// 3D Unique Accessories per role
-function CharacterAccessories({ role }: { role: string }) {
-  if (role === "dev") {
-    // Dev: Over-ear Coder Headphones with glowing neon green LED ring
-    return (
-      <group position={[0, 0.95, 0]}>
-        {/* Headband Arc */}
-        <mesh position={[0, 0.38, 0]} rotation={[0, 0, 0]}>
-          <torusGeometry args={[0.22, 0.025, 8, 24, Math.PI]} />
-          <meshStandardMaterial color="#18181b" roughness={0.3} metalness={0.8} />
-        </mesh>
-        {/* Left Earcup */}
-        <mesh position={[-0.23, 0.38, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.07, 0.07, 0.05, 16]} />
-          <meshStandardMaterial color="#18181b" roughness={0.3} />
-        </mesh>
-        <mesh position={[-0.26, 0.38, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <ringGeometry args={[0.03, 0.055, 16]} />
-          <meshBasicMaterial color="#10b981" />
-        </mesh>
-        {/* Right Earcup */}
-        <mesh position={[0.23, 0.38, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.07, 0.07, 0.05, 16]} />
-          <meshStandardMaterial color="#18181b" roughness={0.3} />
-        </mesh>
-        <mesh position={[0.26, 0.38, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <ringGeometry args={[0.03, 0.055, 16]} />
-          <meshBasicMaterial color="#10b981" />
-        </mesh>
-      </group>
-    );
-  }
-
-  if (role === "analyst") {
-    // Analyst: Smart Rectangular Glasses
-    return (
-      <group position={[0, 1.28, 0.22]}>
-        {/* Bridge */}
-        <mesh position={[0, 0, 0]}>
-          <boxGeometry args={[0.05, 0.015, 0.01]} />
-          <meshStandardMaterial color="#09090b" metalness={0.9} />
-        </mesh>
-        {/* Left Frame */}
-        <mesh position={[-0.1, 0, 0]}>
-          <boxGeometry args={[0.13, 0.08, 0.01]} />
-          <meshStandardMaterial color="#09090b" metalness={0.9} />
-        </mesh>
-        <mesh position={[-0.1, 0, 0.005]}>
-          <planeGeometry args={[0.11, 0.06]} />
-          <meshStandardMaterial color="#38bdf8" transparent opacity={0.35} roughness={0.1} />
-        </mesh>
-        {/* Right Frame */}
-        <mesh position={[0.1, 0, 0]}>
-          <boxGeometry args={[0.13, 0.08, 0.01]} />
-          <meshStandardMaterial color="#09090b" metalness={0.9} />
-        </mesh>
-        <mesh position={[0.1, 0, 0.005]}>
-          <planeGeometry args={[0.11, 0.06]} />
-          <meshStandardMaterial color="#38bdf8" transparent opacity={0.35} roughness={0.1} />
-        </mesh>
-      </group>
-    );
-  }
-
-  if (role === "pm") {
-    // PM: Executive Lanyard with Purple ID Badge
-    return (
-      <group position={[0, 0.88, 0.18]}>
-        {/* Lanyard Ribbon */}
-        <mesh position={[0, 0.12, 0]} rotation={[0, 0, 0]}>
-          <boxGeometry args={[0.22, 0.24, 0.01]} />
-          <meshBasicMaterial color="#7c3aed" wireframe />
-        </mesh>
-        {/* Badge Card */}
-        <mesh position={[0, -0.05, 0.01]}>
-          <boxGeometry args={[0.09, 0.13, 0.01]} />
-          <meshStandardMaterial color="#ffffff" roughness={0.4} />
-        </mesh>
-        <mesh position={[0, -0.03, 0.016]}>
-          <planeGeometry args={[0.07, 0.04]} />
-          <meshBasicMaterial color="#7c3aed" />
-        </mesh>
-      </group>
-    );
-  }
-
-  if (role === "qa") {
-    // QA: QA Inspector Collar Clip Badge
-    return (
-      <group position={[0.12, 0.94, 0.16]}>
-        <mesh rotation={[0, 0, -0.2]}>
-          <boxGeometry args={[0.06, 0.09, 0.01]} />
-          <meshStandardMaterial color="#f97316" roughness={0.3} />
-        </mesh>
-        <mesh position={[0, 0.01, 0.008]} rotation={[0, 0, -0.2]}>
-          <circleGeometry args={[0.02, 12]} />
-          <meshBasicMaterial color="#ffffff" />
-        </mesh>
-      </group>
-    );
-  }
-
-  return null;
+export interface NavWaypoint {
+  x: number;
+  y: number;
+  z: number;
+  isStair?: boolean;
 }
 
-// SkinnedMesh Animated Character with its own independent skeleton instance & custom colormap
-function AnimatedCharacterMesh({
-  sprite,
-  role,
-  actionState,
-}: {
-  sprite: "male" | "female";
-  role: string;
-  actionState: "walk" | "sit" | "idle" | "interact-right" | "interact-left";
-}) {
-  const { scene, animations } = useGLTF(MODEL_URLS[sprite]);
+export interface PersonLookConfig {
+  shirt: string;
+  pants: string;
+  skin: string;
+  hair: string;
+  hairStyle: "short" | "side" | "curly" | "bun" | "long";
+  glasses?: boolean;
+  headphones?: boolean;
+  tie?: boolean;
+  backpack?: boolean;
+}
 
-  // Load custom role texture (distinct clothes, hair, skin)
-  const texture = useTexture(`/office3d/characters/Textures/colormap-${role}.png`);
+export const ROLE_LOOKS: Record<string, PersonLookConfig> = {
+  // --- LANTAI 2 (Mezzanine: Strategy, Architecture & Security) ---
+  pm: {
+    shirt: "#7c3aed", // Royal violet collared shirt
+    pants: "#1e1b4b", // Deep navy trousers
+    skin: "#c68a5e",
+    hair: "#1c1917",
+    hairStyle: "side",
+    tie: true,
+    glasses: true,
+  },
+  analyst: {
+    shirt: "#0284c7", // Bright cyan blouse
+    pants: "#0f172a", // Charcoal dress pants
+    skin: "#f5c6a5",
+    hair: "#3b2012",
+    hairStyle: "bun",
+    glasses: true,
+  },
+  security: {
+    shirt: "#b91c1c", // Security tactical polo
+    pants: "#18181b", // Tactical black cargo
+    skin: "#a86e45",
+    hair: "#140f0c",
+    hairStyle: "short",
+    backpack: true,
+  },
+  designer: {
+    shirt: "#c026d3", // Magenta creative knit
+    pants: "#3b0764", // Plum trousers
+    skin: "#fbcfe8",
+    hair: "#451a03",
+    hairStyle: "long",
+    glasses: true,
+  },
+  // --- LANTAI 1 (Core Engineering, Infrastructure & Data) ---
+  dev: {
+    shirt: "#15803d", // Emerald coder hoodie
+    pants: "#1e293b", // Slate denim
+    skin: "#d6a07a",
+    hair: "#1e1b18",
+    hairStyle: "curly",
+    headphones: true,
+  },
+  qa: {
+    shirt: "#ea580c", // Energetic QA orange sweater
+    pants: "#27272a", // Dark charcoal trousers
+    skin: "#e0b08a",
+    hair: "#2b2016",
+    hairStyle: "short",
+    glasses: true,
+  },
+  devops: {
+    shirt: "#0d9488", // Teal infrastructure shirt
+    pants: "#111827", // Night black trousers
+    skin: "#b97d52",
+    hair: "#191310",
+    hairStyle: "side",
+    headphones: true,
+  },
+  dba: {
+    shirt: "#2563eb", // Deep SQL blue dress shirt
+    pants: "#1e293b", // Slate dress trousers
+    skin: "#f5c6a5",
+    hair: "#1e1b18",
+    hairStyle: "short",
+    tie: true,
+  },
+};
 
-  useEffect(() => {
-    if (texture) {
-      texture.flipY = false;
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.needsUpdate = true;
+export interface PersonBones {
+  root: THREE.Group;
+  hips: THREE.Group;
+  spine: THREE.Group;
+  head: THREE.Group;
+  sh: [THREE.Group, THREE.Group];
+  el: [THREE.Group, THREE.Group];
+  hand: [THREE.Mesh, THREE.Mesh];
+  hip: [THREE.Group, THREE.Group];
+  knee: [THREE.Group, THREE.Group];
+  mug: THREE.Mesh;
+}
+
+// Procedural 3D Character Assembly (Zero external GLTF files needed, renders in 0ms)
+function buildPerson(cfg: PersonLookConfig): PersonBones {
+  const root = new THREE.Group();
+  const hips = new THREE.Group();
+  hips.position.y = 0.9;
+  root.add(hips);
+
+  const mat = (color: string, rough = 0.75, metal = 0.05) =>
+    new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal });
+
+  const box = (w: number, h: number, d: number, r = 0.02) =>
+    new RoundedBoxGeometry(w, h, d, 2, Math.min(r, w / 2 - 0.001, h / 2 - 0.001, d / 2 - 0.001));
+
+  const mesh = (geo: THREE.BufferGeometry, material: THREE.Material) => {
+    const m = new THREE.Mesh(geo, material);
+    m.castShadow = true;
+    m.receiveShadow = true;
+    return m;
+  };
+
+  const pantsM = mat(cfg.pants, 0.85);
+  const shirtM = mat(cfg.shirt, 0.7);
+  const skinM = mat(cfg.skin, 0.6);
+  const hairM = mat(cfg.hair, 0.8);
+  const shoeM = mat("#262626", 0.5);
+  const darkM = mat("#18181b", 0.3);
+
+  // Pelvis / Hips
+  hips.add(mesh(box(0.34, 0.17, 0.22, 0.07), pantsM));
+
+  // Spine & Torso
+  const spine = new THREE.Group();
+  spine.position.y = 0.06;
+  hips.add(spine);
+
+  const torso = mesh(new THREE.CapsuleGeometry(0.16, 0.26, 6, 18), shirtM);
+  torso.scale.set(1.14, 1, 0.74);
+  torso.position.y = 0.25;
+  spine.add(torso);
+
+  // Clothing details
+  if (cfg.headphones) {
+    const hood = mesh(new THREE.TorusGeometry(0.1, 0.035, 10, 20), shirtM);
+    hood.position.set(0, 0.5, -0.08);
+    hood.rotation.x = 1.2;
+    spine.add(hood);
+  } else {
+    const collar = mesh(new THREE.TorusGeometry(0.07, 0.022, 8, 18, Math.PI * 1.3), mat("#ffffff", 0.7));
+    collar.position.set(0, 0.5, 0.01);
+    collar.rotation.set(Math.PI / 2 - 0.2, 0, Math.PI * 0.85);
+    spine.add(collar);
+  }
+
+  if (cfg.tie) {
+    const tie = mesh(box(0.05, 0.22, 0.02, 0.008), mat("#fbbf24", 0.6));
+    tie.position.set(0, 0.34, 0.125);
+    tie.rotation.x = -0.12;
+    spine.add(tie);
+  }
+
+  if (cfg.backpack) {
+    const bag = mesh(box(0.28, 0.34, 0.14, 0.05), mat("#334155", 0.8));
+    bag.position.set(0, 0.28, -0.17);
+    const flap = mesh(box(0.26, 0.1, 0.02, 0.01), mat("#1e293b", 0.8));
+    flap.position.set(0, 0.38, -0.245);
+    spine.add(bag, flap);
+  }
+
+  // Neck
+  const neck = mesh(new THREE.CylinderGeometry(0.048, 0.055, 0.1, 12), skinM);
+  neck.position.y = 0.53;
+  spine.add(neck);
+
+  // Head
+  const head = new THREE.Group();
+  head.position.y = 0.67;
+  spine.add(head);
+
+  const R = 0.128;
+  const skull = mesh(new THREE.SphereGeometry(R, 32, 24), skinM);
+  skull.scale.set(1, 1.1, 1.02);
+  head.add(skull);
+
+  // Cute Facial Features
+  for (const s of [-1, 1]) {
+    // Eyes
+    const eye = mesh(new THREE.SphereGeometry(0.016, 10, 8), darkM);
+    eye.position.set(s * 0.046, 0.012, R * 0.93);
+    // Eyebrows
+    const brow = mesh(box(0.04, 0.008, 0.01, 0.003), hairM);
+    brow.position.set(s * 0.047, 0.045, R * 0.96);
+    // Ears
+    const ear = mesh(new THREE.SphereGeometry(0.03, 10, 8), skinM);
+    ear.scale.set(0.6, 1, 0.8);
+    ear.position.set(s * R * 0.98, 0, 0);
+    head.add(eye, brow, ear);
+  }
+
+  // Cute Nose
+  const nose = mesh(new THREE.SphereGeometry(0.018, 10, 8), skinM);
+  nose.position.set(0, -0.012, R * 1.02);
+  // Friendly Smile
+  const mouth = mesh(new THREE.TorusGeometry(0.022, 0.005, 6, 12, Math.PI), mat("#e11d48", 0.6));
+  mouth.position.set(0, -0.055, R * 0.93);
+  mouth.rotation.z = Math.PI;
+  head.add(nose, mouth);
+
+  // Hair Styles
+  const cap = mesh(new THREE.SphereGeometry(R * 1.07, 28, 18, 0, Math.PI * 2, 0, Math.PI * 0.52), hairM);
+  cap.position.set(0, 0.012, -0.012);
+  cap.scale.set(1, 1.1, 1.04);
+  head.add(cap);
+
+  if (cfg.hairStyle === "short" || cfg.hairStyle === "side") {
+    const backHair = mesh(new THREE.SphereGeometry(R * 1.04, 20, 14, Math.PI * 0.55, Math.PI * 0.9, Math.PI * 0.3, Math.PI * 0.35), hairM);
+    backHair.position.y = -0.01;
+    head.add(backHair);
+    if (cfg.hairStyle === "side") {
+      const part = mesh(box(0.1, 0.03, 0.06, 0.012), hairM);
+      part.position.set(0.05, 0.1, 0.08);
+      part.rotation.z = -0.25;
+      head.add(part);
     }
-  }, [texture]);
-
-  // Deep clone skinned mesh & skeleton so each agent has their own independent bones
-  const clonedScene = useMemo(() => {
-    const c = skeletonClone(scene);
-    c.traverse((obj) => {
-      if ((obj as THREE.Mesh).isMesh) {
-        obj.castShadow = true;
-        obj.receiveShadow = true;
-        const mesh = obj as THREE.Mesh;
-        if (mesh.material) {
-          // Clone material with custom texture map
-          const mat = (mesh.material as THREE.MeshStandardMaterial).clone();
-          mat.map = texture;
-          mat.roughness = 0.5;
-          mat.metalness = 0.1;
-          mat.needsUpdate = true;
-          mesh.material = mat;
-        }
-      }
-    });
-    return c;
-  }, [scene, texture]);
-
-  const { actions } = useAnimations(animations, clonedScene);
-
-  useEffect(() => {
-    // Choose active animation clip
-    const clipName = actionState === "interact-left" ? "interact-left" : actionState;
-    const action = actions[clipName] || actions[actionState] || actions["idle"];
-    if (action) {
-      action.reset().fadeIn(0.25).play();
+  } else if (cfg.hairStyle === "curly") {
+    for (let i = 0; i < 14; i++) {
+      const c = mesh(new THREE.SphereGeometry(0.038, 10, 8), hairM);
+      const a = (i / 14) * Math.PI * 2;
+      const up = 0.3 + (i % 3) * 0.2;
+      c.position.set(Math.sin(a) * R * 0.9 * Math.cos(up), R * 0.55 + Math.sin(up) * 0.06, Math.cos(a) * R * 0.85 * Math.cos(up) - 0.015);
+      head.add(c);
     }
-    return () => {
-      if (action) {
-        action.fadeOut(0.25);
-      }
-    };
-  }, [actionState, actions]);
+  } else if (cfg.hairStyle === "bun" || cfg.hairStyle === "long") {
+    const longHair = cfg.hairStyle === "long";
+    const hang = mesh(new THREE.CylinderGeometry(R * 1.02, R * (longHair ? 1.18 : 1.1), longHair ? 0.4 : 0.26, 20, 1, true, Math.PI * 0.62, Math.PI * 0.76), hairM);
+    hang.position.y = longHair ? -0.14 : -0.08;
+    head.add(hang);
+    if (!longHair) {
+      const bun = mesh(new THREE.SphereGeometry(0.058, 14, 10), hairM);
+      bun.position.set(0, 0.12, -0.1);
+      head.add(bun);
+    }
+  }
 
-  const roleScale = ROLE_SCALES[role] ?? 1.35;
+  // Glasses
+  if (cfg.glasses) {
+    const gm = mat("#0f172a", 0.3, 0.5);
+    for (const s of [-1, 1]) {
+      const ring = mesh(new THREE.TorusGeometry(0.03, 0.005, 8, 20), gm);
+      ring.position.set(s * 0.047, 0.012, R * 1.01);
+      head.add(ring);
+    }
+    const bridge = mesh(new THREE.BoxGeometry(0.03, 0.005, 0.005), gm);
+    bridge.position.set(0, 0.015, R * 1.03);
+    head.add(bridge);
+  }
 
-  return (
-    <group scale={roleScale}>
-      <primitive object={clonedScene} />
-      <CharacterAccessories role={role} />
-    </group>
-  );
+  // Headphones
+  if (cfg.headphones) {
+    const hm = mat("#18181b", 0.4, 0.3);
+    const band = mesh(new THREE.TorusGeometry(R * 1.12, 0.014, 8, 28, Math.PI), hm);
+    band.position.y = 0.01;
+    head.add(band);
+    for (const s of [-1, 1]) {
+      const cup = mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.035, 16), mat(cfg.shirt, 0.5));
+      cup.rotation.z = Math.PI / 2;
+      cup.position.set(s * R * 1.05, 0, 0);
+      head.add(cup);
+    }
+  }
+
+  // Shoulders, Elbows, Hands (Articulated Joints)
+  const sh: [THREE.Group, THREE.Group] = [new THREE.Group(), new THREE.Group()];
+  const el: [THREE.Group, THREE.Group] = [new THREE.Group(), new THREE.Group()];
+  const handMeshes: [THREE.Mesh, THREE.Mesh] = [null as any, null as any];
+
+  for (let i = 0; i < 2; i++) {
+    const s = i === 0 ? -1 : 1;
+    sh[i].position.set(s * 0.2, 0.44, 0);
+    spine.add(sh[i]);
+
+    const upper = mesh(new THREE.CapsuleGeometry(0.05, 0.19, 4, 12), shirtM);
+    upper.position.y = -0.14;
+    sh[i].add(upper);
+
+    el[i].position.y = -0.29;
+    sh[i].add(el[i]);
+
+    const fore = mesh(new THREE.CapsuleGeometry(0.043, 0.17, 4, 12), shirtM);
+    fore.position.y = -0.12;
+    el[i].add(fore);
+
+    const h = mesh(new THREE.SphereGeometry(0.047, 12, 10), skinM);
+    h.position.y = -0.26;
+    h.scale.set(0.9, 1.1, 0.7);
+    el[i].add(h);
+    handMeshes[i] = h;
+  }
+
+  // Coffee mug held in right hand (index 1)
+  const mugGeo = new THREE.CylinderGeometry(0.032, 0.028, 0.07, 12);
+  const mug = mesh(mugGeo, mat("#ffffff", 0.3));
+  mug.position.set(0, -0.06, 0.04);
+  mug.visible = false;
+  handMeshes[1].add(mug);
+
+  // Hips, Thighs, Knees, Feet (Articulated Legs)
+  const hip: [THREE.Group, THREE.Group] = [new THREE.Group(), new THREE.Group()];
+  const knee: [THREE.Group, THREE.Group] = [new THREE.Group(), new THREE.Group()];
+
+  for (let i = 0; i < 2; i++) {
+    const s = i === 0 ? -1 : 1;
+    hip[i].position.set(s * 0.095, -0.03, 0);
+    hips.add(hip[i]);
+
+    const thigh = mesh(new THREE.CapsuleGeometry(0.068, 0.26, 4, 12), pantsM);
+    thigh.position.y = -0.2;
+    hip[i].add(thigh);
+
+    knee[i].position.y = -0.41;
+    hip[i].add(knee[i]);
+
+    const shin = mesh(new THREE.CapsuleGeometry(0.058, 0.27, 4, 12), pantsM);
+    shin.position.y = -0.18;
+    knee[i].add(shin);
+
+    const foot = mesh(box(0.11, 0.07, 0.23, 0.03), shoeM);
+    foot.position.set(0, -0.4, 0.05);
+    knee[i].add(foot);
+  }
+
+  return { root, hips, spine, head, sh, el, hand: handMeshes, hip, knee, mug };
 }
 
-function CharacterFallback() {
-  return (
-    <mesh position={[0, 0.45, 0]} castShadow receiveShadow>
-      <boxGeometry args={[0.4, 0.9, 0.25]} />
-      <meshStandardMaterial color="#94a3b8" />
-    </mesh>
-  );
+export interface PoseData {
+  hipsY?: number;
+  spineX?: number;
+  spineZ?: number;
+  headX?: number;
+  headY?: number;
+  headZ?: number;
+  lShX?: number;
+  lShZ?: number;
+  lElX?: number;
+  lElZ?: number;
+  rShX?: number;
+  rShZ?: number;
+  rElX?: number;
+  rElZ?: number;
+  lHipX?: number;
+  rHipX?: number;
+  lKneeX?: number;
+  rKneeX?: number;
 }
 
-class ModelErrorBoundary extends Component<
-  { children: ReactNode; fallback: ReactNode },
-  { hasError: boolean }
-> {
-  state = { hasError: false };
-  static getDerivedStateFromError() {
-    return { hasError: true };
+const lerpK = (a: number, b: number, k: number) => a + (b - a) * Math.min(1, Math.max(0, k));
+
+function lerpVal(current: number, target: number, alpha: number): number {
+  const k = Math.min(1, Math.max(0, alpha));
+  return current + (target - current) * k;
+}
+
+function lerpAngle(current: number, target: number, alpha: number): number {
+  const k = Math.min(1, Math.max(0, alpha));
+  let diff = (target - current) % (Math.PI * 2);
+  if (diff < -Math.PI) diff += Math.PI * 2;
+  if (diff > Math.PI) diff -= Math.PI * 2;
+  return current + diff * k;
+}
+
+function applyPose(bones: PersonBones, T: PoseData, dt: number) {
+  const k = Math.min(1, Math.max(0, dt * 9));
+
+  bones.spine.rotation.x = lerpK(bones.spine.rotation.x, T.spineX ?? 0, k);
+  bones.spine.rotation.z = lerpK(bones.spine.rotation.z, T.spineZ ?? 0, k);
+
+  bones.head.rotation.x = lerpK(bones.head.rotation.x, T.headX ?? 0, k * 1.2);
+  bones.head.rotation.y = lerpK(bones.head.rotation.y, T.headY ?? 0, k);
+  bones.head.rotation.z = lerpK(bones.head.rotation.z, T.headZ ?? 0, k);
+
+  // Left Shoulder & Elbow
+  bones.sh[0].rotation.x = lerpK(bones.sh[0].rotation.x, T.lShX ?? 0, k);
+  bones.sh[0].rotation.z = lerpK(bones.sh[0].rotation.z, T.lShZ ?? 0.08, k);
+  bones.el[0].rotation.x = lerpK(bones.el[0].rotation.x, T.lElX ?? 0, k);
+  bones.el[0].rotation.z = lerpK(bones.el[0].rotation.z, T.lElZ ?? 0, k);
+
+  // Right Shoulder & Elbow
+  bones.sh[1].rotation.x = lerpK(bones.sh[1].rotation.x, T.rShX ?? 0, k);
+  bones.sh[1].rotation.z = lerpK(bones.sh[1].rotation.z, T.rShZ ?? -0.08, k);
+  bones.el[1].rotation.x = lerpK(bones.el[1].rotation.x, T.rElX ?? 0, k);
+  bones.el[1].rotation.z = lerpK(bones.el[1].rotation.z, T.rElZ ?? 0, k);
+
+  // Hips & Knees
+  bones.hip[0].rotation.x = lerpK(bones.hip[0].rotation.x, T.lHipX ?? 0, k * 1.4);
+  bones.knee[0].rotation.x = lerpK(bones.knee[0].rotation.x, T.lKneeX ?? 0, k * 1.4);
+
+  bones.hip[1].rotation.x = lerpK(bones.hip[1].rotation.x, T.rHipX ?? 0, k * 1.4);
+  bones.knee[1].rotation.x = lerpK(bones.knee[1].rotation.x, T.rKneeX ?? 0, k * 1.4);
+
+  bones.hips.position.y = lerpK(bones.hips.position.y, T.hipsY ?? 0.9, k);
+}
+
+// Procedural Dynamic Poses
+function walkPose(phase: number, isStair = false, climbingUp = true): PoseData {
+  const sw = Math.sin(phase);
+  const kneeBend = isStair ? 0.9 : 0.72;
+  return {
+    hipsY: 0.9 + Math.abs(Math.cos(phase)) * 0.038,
+    spineX: isStair ? (climbingUp ? 0.12 : -0.06) : 0.04,
+    headX: isStair ? (climbingUp ? 0.14 : -0.04) : 0.05,
+    lHipX: sw * 0.52,
+    rHipX: -sw * 0.52,
+    lKneeX: Math.max(0, -sw) * kneeBend,
+    rKneeX: Math.max(0, sw) * kneeBend,
+    lShX: -sw * 0.4,
+    lShZ: 0.1,
+    lElX: -0.25,
+    rShX: sw * 0.4,
+    rShZ: -0.1,
+    rElX: -0.25,
+  };
+}
+
+function typePose(t: number, seed: number): PoseData {
+  const tw = Math.sin(t * 14 + seed);
+  return {
+    hipsY: 0.50, // Hips rest directly on chair cushion
+    lHipX: -1.5,
+    rHipX: -1.5,
+    lKneeX: 1.45,
+    rKneeX: 1.45,
+    spineX: 0.14,
+    headX: 0.1 + Math.sin(t * 1.5 + seed) * 0.03,
+    headY: Math.sin(t * 0.6 + seed) * 0.08,
+    lShX: -0.65,
+    lShZ: 0.18,
+    lElX: -1.0 + tw * 0.08,
+    rShX: -0.65,
+    rShZ: -0.18,
+    rElX: -1.0 - tw * 0.08,
+  };
+}
+
+function readPose(t: number, seed: number): PoseData {
+  return {
+    hipsY: 0.50, // Hips rest directly on chair cushion
+    lHipX: -1.5,
+    rHipX: -1.5,
+    lKneeX: 1.45,
+    rKneeX: 1.45,
+    spineX: -0.04,
+    headX: 0.06,
+    headY: Math.sin(t * 0.8 + seed) * 0.22,
+    lShX: -0.4,
+    lShZ: 0.3,
+    lElX: -1.2,
+    rShX: -0.85,
+    rShZ: -0.05,
+    rElX: -1.45 + Math.sin(t * 2) * 0.04,
+  };
+}
+
+function meetingPose(t: number, seed: number): PoseData {
+  return {
+    hipsY: 0.50, // Hips rest on conference chair cushion
+    lHipX: -1.5,
+    rHipX: -1.5,
+    lKneeX: 1.45,
+    rKneeX: 1.45,
+    spineX: 0.08,
+    headX: 0.06 + Math.sin(t * 1.3 + seed) * 0.03,
+    headY: Math.sin(t * 0.5 + seed) * 0.15,
+    lShX: -0.72,
+    lShZ: 0.18,
+    lElX: -0.92,
+    rShX: -0.72 + Math.sin(t * 2.5 + seed) * 0.08,
+    rShZ: -0.18,
+    rElX: -0.92,
+  };
+}
+
+function sofaPose(t: number): PoseData {
+  return {
+    hipsY: 0.42, // Hips sink comfortably into sofa cushion
+    lHipX: -1.4,
+    rHipX: -1.4,
+    lKneeX: 1.35,
+    rKneeX: 1.35,
+    spineX: -0.18,
+    headX: -0.08 + Math.sin(t * 0.8) * 0.04,
+    lShX: -0.45,
+    lShZ: 0.25,
+    lElX: -0.95,
+    rShX: -0.45,
+    rShZ: -0.25,
+    rElX: -0.95,
+  };
+}
+
+function coffeePose(t: number): PoseData {
+  const sip = (t % 7) < 2.2;
+  return {
+    hipsY: 0.9,
+    lHipX: 0,
+    rHipX: 0,
+    lKneeX: 0,
+    rKneeX: 0,
+    spineX: -0.02,
+    headX: sip ? -0.18 : 0.05,
+    lShX: 0.1,
+    lElX: -0.15,
+    rShX: sip ? -1.1 : -0.55,
+    rShZ: sip ? -0.35 : -0.15,
+    rElX: sip ? -2.1 : -1.35,
+  };
+}
+
+function balconyPose(t: number): PoseData {
+  return {
+    hipsY: 0.9,
+    lHipX: 0,
+    rHipX: 0,
+    lKneeX: 0,
+    rKneeX: 0,
+    spineX: 0.1,
+    headX: 0.15,
+    headY: Math.sin(t * 0.5) * 0.2,
+    lShX: -0.8,
+    lShZ: 0.35,
+    lElX: -1.4,
+    rShX: -0.8,
+    rShZ: -0.35,
+    rElX: -1.4,
+  };
+}
+
+function whiteboardPose(t: number): PoseData {
+  return {
+    hipsY: 0.9,
+    lHipX: 0,
+    rHipX: 0,
+    lKneeX: 0,
+    rKneeX: 0,
+    spineX: 0.05,
+    headX: 0.12,
+    rShX: -1.2 + Math.sin(t * 3) * 0.15,
+    rShZ: 0.2,
+    rElX: -0.8,
+    lShX: 0.1,
+    lElX: -0.2,
+  };
+}
+
+// Architectural Staircase Navigation: routes character across floors through physical stairs
+export function buildPathToSpot(
+  currentPos: { x: number; y: number; z: number },
+  targetSpot: OfficeSpot
+): NavWaypoint[] {
+  const currentFloor: 1 | 2 = currentPos.y > 1.8 ? 2 : 1;
+  const targetFloor = targetSpot.floor;
+
+  const waypoints: NavWaypoint[] = [];
+
+  if (currentFloor === 1 && targetFloor === 2) {
+    // === NAIK TANGGA (Lantai 1 -> Lantai 2) ===
+    waypoints.push({ x: -9.2, y: 0.0, z: 4.4 });
+    waypoints.push({ x: -9.2, y: 0.15, z: 3.6, isStair: true });
+    waypoints.push({ x: -9.2, y: 1.15, z: 2.4, isStair: true });
+    waypoints.push({ x: -9.2, y: 2.18, z: 1.2, isStair: true });
+    waypoints.push({ x: -9.2, y: 3.46, z: -0.3, isStair: true });
+    waypoints.push({ x: -8.5, y: 3.6, z: 0.2 });
+    waypoints.push({ x: targetSpot.x, y: 3.6, z: targetSpot.z });
+  } else if (currentFloor === 2 && targetFloor === 1) {
+    // === TURUN TANGGA (Lantai 2 -> Lantai 1) ===
+    waypoints.push({ x: -8.5, y: 3.6, z: 0.2 });
+    waypoints.push({ x: -9.2, y: 3.46, z: -0.3, isStair: true });
+    waypoints.push({ x: -9.2, y: 2.18, z: 1.2, isStair: true });
+    waypoints.push({ x: -9.2, y: 1.15, z: 2.4, isStair: true });
+    waypoints.push({ x: -9.2, y: 0.15, z: 3.6, isStair: true });
+    waypoints.push({ x: -9.2, y: 0.0, z: 4.4 });
+    waypoints.push({ x: targetSpot.x, y: 0.0, z: targetSpot.z });
+  } else {
+    // === SAME FLOOR NAVIGATION ===
+    const walkY = targetFloor === 2 ? 3.6 : 0.0;
+    waypoints.push({ x: targetSpot.x, y: walkY, z: targetSpot.z });
   }
-  render() {
-    return this.state.hasError ? this.props.fallback : this.props.children;
-  }
+
+  return waypoints;
 }
 
 export function CharacterModel({
@@ -252,34 +627,44 @@ export function CharacterModel({
   const groupRef = useRef<THREE.Group>(null);
   const ringRef = useRef<THREE.Mesh>(null);
   const [hovered, setHovered] = useState(false);
-  const [actionState, setActionState] = useState<"walk" | "sit" | "idle" | "interact-right" | "interact-left">("sit");
 
   const role = agent.subagent_type;
-  const sprite = ROLE_SPRITE[role] ?? DEFAULT_SPRITE;
   const ringColor = ROLE_RING_COLOR[role] ?? DEFAULT_RING_COLOR;
   const working = agent.status === "working";
+  const lookConfig = ROLE_LOOKS[role] ?? ROLE_LOOKS.dev;
 
-  // Target spot with exact [x, y, z] coordinates & sitting elevation
+  // Build procedural cute character (instantly in memory, zero GLTF loading!)
+  const bones = useMemo(() => buildPerson(lookConfig), [lookConfig]);
+
   const currentSpotRef = useRef<OfficeSpot>(getDeskSpot(role));
+  const pathQueueRef = useRef<NavWaypoint[]>([]);
   const currentDialogue = useRef<string>(agent.last_action || "Fokus kerja...");
-  const nextChangeTime = useRef<number>(performance.now() + 6000 + Math.random() * 8000);
+  const nextChangeTime = useRef<number>(performance.now() + 8000 + Math.random() * 10000);
+  const walkPhase = useRef<number>(0);
+  const randomSeed = useRef<number>(Math.random() * 100);
 
   // Set initial position onto desk chair
   useLayoutEffect(() => {
     if (!groupRef.current) return;
     const initialSpot = getDeskSpot(role);
-    groupRef.current.position.set(initialSpot.x, initialSpot.y, initialSpot.z);
+    const floorY = initialSpot.floor === 2 ? 3.6 : 0.0;
+    groupRef.current.position.set(initialSpot.x, floorY, initialSpot.z);
     groupRef.current.rotation.y = initialSpot.faceAngle;
     currentSpotRef.current = initialSpot;
+    pathQueueRef.current = [];
   }, [role]);
 
-  // When live events arrive from backend, prioritize own desk
+  // When live events arrive from backend, prioritize own desk via realistic path
   useEffect(() => {
     if (agent.last_action) {
       currentDialogue.current = agent.last_action;
       if (working) {
-        currentSpotRef.current = getDeskSpot(role);
-        nextChangeTime.current = performance.now() + 16000;
+        const deskSpot = getDeskSpot(role);
+        currentSpotRef.current = deskSpot;
+        if (groupRef.current) {
+          pathQueueRef.current = buildPathToSpot(groupRef.current.position, deskSpot);
+        }
+        nextChangeTime.current = performance.now() + 18000;
       }
     }
   }, [agent.last_action, role, working]);
@@ -293,19 +678,21 @@ export function CharacterModel({
     }
   }, [hovered]);
 
-  useFrame((_, delta) => {
+  useFrame((_, rawDelta) => {
     if (!groupRef.current) return;
 
+    // Clamp delta to protect against tab lag or frame drops
+    const delta = Math.min(rawDelta, 0.08);
     const now = performance.now();
+    const timeSec = now / 1000;
 
-    // Pick new random spot across office
+    // Pick new random spot across 2-floor office
     if (now > nextChangeTime.current) {
-      nextChangeTime.current = now + 9000 + Math.random() * 12000;
+      nextChangeTime.current = now + 12000 + Math.random() * 16000;
 
       const spots = getRandomOfficeSpots(role);
-      // 40% chance return to own desk, 60% explore office
       let chosenSpot: OfficeSpot;
-      if (Math.random() < 0.4) {
+      if (Math.random() < 0.40) {
         chosenSpot = getDeskSpot(role);
       } else {
         const otherSpots = spots.filter((s) => s.id !== currentSpotRef.current.id);
@@ -314,58 +701,137 @@ export function CharacterModel({
 
       currentSpotRef.current = chosenSpot;
       currentDialogue.current = agent.last_action || getRandomDialogue(role, chosenSpot.category);
+      pathQueueRef.current = buildPathToSpot(groupRef.current.position, chosenSpot);
     }
 
     const currentX = groupRef.current.position.x;
     const currentY = groupRef.current.position.y;
     const currentZ = groupRef.current.position.z;
-
     const targetSpot = currentSpotRef.current;
-    const dx = targetSpot.x - currentX;
-    const dz = targetSpot.z - currentZ;
-    const distanceXZ = Math.hypot(dx, dz);
 
     let isWalking = false;
 
-    if (distanceXZ > 0.08) {
-      // Walking locomotion
+    if (pathQueueRef.current.length > 0) {
       isWalking = true;
-      const step = Math.min(distanceXZ, WALK_SPEED * delta);
-      groupRef.current.position.x += (dx / distanceXZ) * step;
-      groupRef.current.position.z += (dz / distanceXZ) * step;
+      const wp = pathQueueRef.current[0];
+      const dx = wp.x - currentX;
+      const dy = wp.y - currentY;
+      const dz = wp.z - currentZ;
 
-      // While walking, smooth lerp Y to floor level (0.0)
-      groupRef.current.position.y = THREE.MathUtils.lerp(currentY, 0.0, delta * 10);
+      // Update walk animation phase
+      walkPhase.current += delta * 9.5;
 
-      // Rotate smoothly towards movement direction
-      const travelHeading = Math.atan2(dx, dz);
-      groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, travelHeading, delta * 12);
+      if (wp.isStair) {
+        // --- PHYSICAL STAIR CLIMBING & DESCENDING ---
+        const dist3D = Math.hypot(dx, dy, dz);
+        const stairSpeed = WALK_SPEED * 0.9;
+        const step = Math.min(dist3D, stairSpeed * delta);
 
-      if (actionState !== "walk") setActionState("walk");
+        if (dist3D > 0.001) {
+          groupRef.current.position.x += (dx / dist3D) * step;
+          groupRef.current.position.y += (dy / dist3D) * step;
+          groupRef.current.position.z += (dz / dist3D) * step;
+        }
+
+        const climbingUp = dy >= 0;
+        const stairHeading = climbingUp ? Math.PI : 0;
+        groupRef.current.rotation.y = lerpAngle(
+          groupRef.current.rotation.y,
+          stairHeading,
+          delta * 10
+        );
+
+        // Apply organic stair walk pose
+        applyPose(bones, walkPose(walkPhase.current, true, climbingUp), delta);
+        bones.mug.visible = false;
+
+        if (dist3D < 0.18) {
+          pathQueueRef.current.shift();
+        }
+      } else {
+        // --- FLAT FLOOR WALKING ---
+        const distXZ = Math.hypot(dx, dz);
+        const step = Math.min(distXZ, WALK_SPEED * delta);
+
+        if (distXZ > 0.001) {
+          groupRef.current.position.x += (dx / distXZ) * step;
+          groupRef.current.position.z += (dz / distXZ) * step;
+        }
+
+        groupRef.current.position.y = lerpVal(currentY, wp.y, delta * 10);
+
+        if (distXZ > 0.05) {
+          const travelHeading = Math.atan2(dx, dz);
+          groupRef.current.rotation.y = lerpAngle(
+            groupRef.current.rotation.y,
+            travelHeading,
+            delta * 10
+          );
+        }
+
+        // Apply natural flat floor walk pose
+        applyPose(bones, walkPose(walkPhase.current, false), delta);
+        bones.mug.visible = false;
+
+        if (distXZ < 0.14) {
+          pathQueueRef.current.shift();
+        }
+      }
     } else {
-      // Reached destination spot
+      // --- ARRIVED AT FINAL DESTINATION SPOT ---
       groupRef.current.position.x = targetSpot.x;
       groupRef.current.position.z = targetSpot.z;
+      // Floor height: Floor 1 is 0.0, Floor 2 is 3.6 (sitting drop is handled inside the skeleton by hipsY)
+      const floorLevelY = targetSpot.floor === 2 ? 3.6 : 0.0;
+      groupRef.current.position.y = lerpVal(currentY, floorLevelY, delta * 8);
 
-      // Smoothly elevate to seat cushion (0.38 for chair, 0.24 for sofa) or lower to floor (0.0)
-      groupRef.current.position.y = THREE.MathUtils.lerp(currentY, targetSpot.y, delta * 8);
+      groupRef.current.rotation.y = lerpAngle(
+        groupRef.current.rotation.y,
+        targetSpot.faceAngle,
+        delta * 6
+      );
 
-      // Rotate smoothly towards spot facing angle
-      groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetSpot.faceAngle, delta * 6);
-
-      // Switch to resting/sitting animation
-      if (actionState !== targetSpot.actionState) {
-        setActionState(targetSpot.actionState);
+      // Select realistic situational pose based on spot category
+      let spotPoseData: PoseData;
+      if (targetSpot.category === "desk") {
+        spotPoseData = working ? typePose(timeSec, randomSeed.current) : readPose(timeSec, randomSeed.current);
+        bones.mug.visible = false;
+      } else if (targetSpot.category === "meeting") {
+        spotPoseData = meetingPose(timeSec, randomSeed.current);
+        bones.mug.visible = false;
+      } else if (targetSpot.category === "sofa") {
+        spotPoseData = sofaPose(timeSec);
+        bones.mug.visible = false;
+      } else if (targetSpot.category === "coffee" || targetSpot.category === "waterCooler") {
+        spotPoseData = coffeePose(timeSec);
+        bones.mug.visible = true; // Hold coffee cup
+      } else if (targetSpot.category === "balcony" || targetSpot.category === "window") {
+        spotPoseData = balconyPose(timeSec);
+        bones.mug.visible = false;
+      } else if (targetSpot.category === "whiteboard") {
+        spotPoseData = whiteboardPose(timeSec);
+        bones.mug.visible = false;
+      } else {
+        spotPoseData = readPose(timeSec, randomSeed.current);
+        bones.mug.visible = false;
       }
+
+      applyPose(bones, spotPoseData, delta);
     }
 
-    // Role ring: keep flat on the floor even when character sits up
+    // Protection check against non-finite or rogue positions
+    if (!Number.isFinite(groupRef.current.position.y) || Math.abs(groupRef.current.position.y) > 20) {
+      const fallbackY = targetSpot.floor === 2 ? 3.6 : 0.0;
+      groupRef.current.position.set(targetSpot.x, fallbackY, targetSpot.z);
+      groupRef.current.rotation.y = targetSpot.faceAngle;
+    }
+
+    // Role ring - stays anchored 2cm above the floor under the character
     if (ringRef.current) {
       const pulse = 1 + Math.sin(now / 240) * 0.08;
       const baseScale = hovered ? 1.25 : 1.0;
       ringRef.current.scale.set(baseScale * pulse, baseScale * pulse, 1);
-      // Anchor ring to floor regardless of group Y elevation
-      ringRef.current.position.y = -groupRef.current.position.y + 0.015;
+      ringRef.current.position.y = 0.02;
     }
 
     // Sync live coordinates to shared ref for HUD labels
@@ -373,6 +839,7 @@ export function CharacterModel({
       livePositionsRef.current[role] = {
         x: groupRef.current.position.x,
         z: groupRef.current.position.z,
+        y: groupRef.current.position.y,
         rotationY: groupRef.current.rotation.y,
         isWalking,
         bubbleText: currentDialogue.current,
@@ -393,26 +860,21 @@ export function CharacterModel({
       }}
       onPointerOut={() => setHovered(false)}
     >
+      {/* Procedural Character Hierarchy */}
+      <primitive object={bones.root} />
+
       {/* Glowing Neon Role Ring */}
-      <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.015, 0]}>
+      <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
         <ringGeometry args={[0.35, 0.52, 32]} />
         <meshStandardMaterial
           color={ringColor}
           emissive={ringColor}
-          emissiveIntensity={working ? 1.4 : 0.45}
-          roughness={0.1}
+          emissiveIntensity={hovered ? 1.0 : 0.45}
+          side={THREE.DoubleSide}
+          transparent
+          opacity={0.85}
         />
       </mesh>
-
-      <ModelErrorBoundary fallback={<CharacterFallback />}>
-        <Suspense fallback={<CharacterFallback />}>
-          <AnimatedCharacterMesh
-            sprite={sprite}
-            role={role}
-            actionState={actionState}
-          />
-        </Suspense>
-      </ModelErrorBoundary>
     </group>
   );
 }

@@ -9,116 +9,183 @@ import {
   WallBookshelf,
   BreakLoungeArea,
   PendantLamp,
+  ArchitecturalStaircase,
+  MezzanineGlassRailing,
+  ConferenceMeetingTable,
+  EntranceDoor,
+  CoffeeEspressoBar,
 } from "./OfficeProps";
 
 export function Scene({
   children,
+  timeOfDay = "day",
   onInteractProp,
 }: {
   children: ReactNode;
+  timeOfDay?: "day" | "night";
   onInteractProp?: (title: string, message: string, icon: string) => void;
 }) {
+  const isDay = timeOfDay === "day";
+
   return (
     <Canvas
       shadows
-      camera={{ position: [9, 8, 11], fov: 42 }}
+      camera={{ position: [14, 12, 16], fov: 44 }}
       style={{ width: "100%", height: "100%" }}
     >
-      <PerspectiveCamera makeDefault position={[9, 8, 11]} fov={42} />
+      <PerspectiveCamera makeDefault position={[14, 12, 16]} fov={44} />
 
-      {/* OrbitControls: 360 rotation, smooth damping, zoom & pan */}
+      {/* OrbitControls: 360 smooth exploration of 2-floor agency */}
       <OrbitControls
         makeDefault
         enableDamping
         dampingFactor={0.06}
-        minDistance={4}
-        maxDistance={24}
-        maxPolarAngle={Math.PI / 2.1} // don't go below floor
-        target={[0, 0.8, 0]}
+        minDistance={5}
+        maxDistance={32}
+        maxPolarAngle={Math.PI / 2.08}
+        target={[0, 2.0, 0]}
       />
 
-      {/* --- LIGHTING --- */}
-      <ambientLight intensity={0.75} color="#cbd5e1" />
-      
-      {/* Studio Key Light (Sun / Main Spotlight) */}
+      {/* --- DYNAMIC DAY / NIGHT LIGHTING --- */}
+      {/* Ambient Light: Clear natural daylight or warm inviting golden-ivory nighttime office interior */}
+      <ambientLight
+        intensity={isDay ? 1.25 : 1.4}
+        color={isDay ? "#f8fafc" : "#fef3c7"}
+      />
+
+      {/* Main Key Light: Sun beam in daytime or ceiling downlights at night */}
       <directionalLight
-        position={[10, 14, 8]}
-        intensity={1.8}
-        color="#fffbeb"
+        position={isDay ? [12, 18, 10] : [2, 16, 4]}
+        intensity={isDay ? 2.4 : 1.9}
+        color={isDay ? "#fffbeb" : "#fffbeb"}
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
         shadow-camera-near={0.5}
-        shadow-camera-far={35}
-        shadow-camera-left={-12}
-        shadow-camera-right={12}
-        shadow-camera-top={12}
-        shadow-camera-bottom={-12}
+        shadow-camera-far={45}
+        shadow-camera-left={-16}
+        shadow-camera-right={16}
+        shadow-camera-top={16}
+        shadow-camera-bottom={-16}
         shadow-bias={-0.0001}
       />
 
-      {/* Cool Fill Light from Window */}
-      <directionalLight position={[-10, 8, -6]} intensity={0.6} color="#38bdf8" />
+      {/* Window Lighting: Daylight sunbeam or soft cinematic moonlight rim */}
+      <directionalLight
+        position={[6, 8, -10]}
+        intensity={isDay ? 1.8 : 1.3}
+        color={isDay ? "#bae6fd" : "#93c5fd"}
+      />
 
-      {/* --- ARCHITECTURAL ROOM STRUCTURE --- */}
-      {/* Wooden Parquet Floor */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
-        <planeGeometry args={[18, 14]} />
-        <meshStandardMaterial color="#2d221b" roughness={0.4} metalness={0.05} />
+      {/* Night Interior Ceiling Fill Lights: Ensures all 2 floors are clearly visible, warm & cozy */}
+      {!isDay && (
+        <>
+          {/* Floor 1 Core Workstations Overhead Light */}
+          <pointLight position={[0, 3.8, 1.0]} intensity={1.8} distance={18} color="#fef08a" />
+          {/* Floor 2 Mezzanine Workstations Overhead Light */}
+          <pointLight position={[-5.5, 6.8, -3.2]} intensity={1.8} distance={15} color="#fef3c7" />
+          {/* Break Lounge & Entrance Warm Glow */}
+          <pointLight position={[6.5, 3.5, 3.5]} intensity={1.4} distance={14} color="#fde68a" />
+          {/* Conference Meeting Area Warm Glow */}
+          <pointLight position={[6.0, 3.5, -1.8]} intensity={1.4} distance={14} color="#fef3c7" />
+        </>
+      )}
+
+      {/* --- FLOOR 1 (Ground Floor - Parquet & Dark Slate) --- */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0.5]} receiveShadow>
+        <planeGeometry args={[22, 16]} />
+        <meshStandardMaterial color="#241a15" roughness={0.45} metalness={0.05} />
       </mesh>
 
-      {/* Plush Office Rug (Under the work desks) */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0.2, 0.005, -0.4]} receiveShadow>
-        <planeGeometry args={[11.5, 6.2]} />
+      {/* Ground Floor Workstation Rug */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 1.0]} receiveShadow>
+        <planeGeometry args={[12, 11]} />
         <meshStandardMaterial color="#1e293b" roughness={0.9} />
       </mesh>
-      {/* Rug Accent Border */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0.2, 0.006, -0.4]} receiveShadow>
-        <planeGeometry args={[11.2, 5.9]} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.006, 1.0]} receiveShadow>
+        <planeGeometry args={[11.6, 10.6]} />
         <meshStandardMaterial color="#0f172a" roughness={0.95} />
       </mesh>
 
-      {/* --- ARCHITECTURAL BACK WALL WITH CARVED WINDOW APERTURE --- */}
-      {/* Left Wall Section (from x = -9 to x = 0.1) */}
-      <mesh position={[-4.45, 2.75, -5.5]} receiveShadow>
-        <planeGeometry args={[9.1, 5.5]} />
+      {/* --- FLOOR 2: MEZZANINE SLAB & STRUCTURAL COLUMNS --- */}
+      {/* Mezzanine Concrete / Hardwood Slab (y = 3.58) */}
+      <mesh position={[-5.5, 3.58, -3.25]} castShadow receiveShadow>
+        <boxGeometry args={[11.0, 0.16, 8.5]} />
+        <meshStandardMaterial color="#1c1917" roughness={0.5} metalness={0.1} />
+      </mesh>
+      {/* Mezzanine Floor Surface Trim */}
+      <mesh position={[-5.5, 3.67, -3.25]} receiveShadow>
+        <boxGeometry args={[10.9, 0.02, 8.4]} />
+        <meshStandardMaterial color="#2d221b" roughness={0.4} />
+      </mesh>
+      {/* Mezzanine Work Area Rug */}
+      <mesh position={[-6.0, 3.685, -3.2]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[8.5, 6.5]} />
+        <meshStandardMaterial color="#1e293b" roughness={0.95} />
+      </mesh>
+
+      {/* Structural Support Columns (From Floor 1 to Floor 2 ceiling) */}
+      <mesh position={[-0.2, 3.6, 0.9]} castShadow>
+        <cylinderGeometry args={[0.12, 0.12, 7.2, 16]} />
+        <meshStandardMaterial color="#09090b" metalness={0.9} roughness={0.2} />
+      </mesh>
+      <mesh position={[-0.2, 3.6, -7.3]} castShadow>
+        <cylinderGeometry args={[0.12, 0.12, 7.2, 16]} />
+        <meshStandardMaterial color="#09090b" metalness={0.9} roughness={0.2} />
+      </mesh>
+
+      {/* Mezzanine Glass Balustrade Overlooking Floor 1 */}
+      <MezzanineGlassRailing onInteract={onInteractProp} />
+
+      {/* Floating Staircase Connecting Floor 1 to Floor 2 */}
+      <ArchitecturalStaircase position={[-9.2, 0, 3.6]} onInteract={onInteractProp} />
+
+      {/* --- WALLS WITH CARVED PANORAMIC DOUBLE-HEIGHT WINDOW --- */}
+      {/* Left Wall (Double-Height: 22 units wide, 7.5 units high) */}
+      <mesh position={[-11, 3.75, 0.5]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
+        <planeGeometry args={[16, 7.5]} />
+        <meshStandardMaterial color="#27272a" roughness={0.75} />
+      </mesh>
+      {/* Left Wall Baseboard */}
+      <mesh position={[-10.98, 0.1, 0.5]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
+        <boxGeometry args={[16, 0.2, 0.04]} />
+        <meshStandardMaterial color="#09090b" />
+      </mesh>
+
+      {/* Right Wall (Double-Height) */}
+      <mesh position={[11, 3.75, 0.5]} rotation={[0, -Math.PI / 2, 0]} receiveShadow>
+        <planeGeometry args={[16, 7.5]} />
+        <meshStandardMaterial color="#27272a" roughness={0.75} />
+      </mesh>
+      <mesh position={[10.98, 0.1, 0.5]} rotation={[0, -Math.PI / 2, 0]} receiveShadow>
+        <boxGeometry args={[16, 0.2, 0.04]} />
+        <meshStandardMaterial color="#09090b" />
+      </mesh>
+
+      {/* Back Wall Section Left of Window (x = -11 to x = 0.5, width = 11.5) */}
+      <mesh position={[-5.25, 3.75, -7.5]} receiveShadow>
+        <planeGeometry args={[11.5, 7.5]} />
         <meshStandardMaterial color="#18181b" roughness={0.8} />
       </mesh>
-      {/* Right Wall Section (from x = 6.3 to x = 9.0) */}
-      <mesh position={[7.65, 2.75, -5.5]} receiveShadow>
-        <planeGeometry args={[2.7, 5.5]} />
+      {/* Back Wall Section Right of Window (x = 10.5 to x = 11.0, width = 0.5) */}
+      <mesh position={[10.75, 3.75, -7.5]} receiveShadow>
+        <planeGeometry args={[0.5, 7.5]} />
         <meshStandardMaterial color="#18181b" roughness={0.8} />
       </mesh>
-      {/* Top Header Section above Window (y = 4.6 to 5.5) */}
-      <mesh position={[3.2, 5.05, -5.5]} receiveShadow>
-        <planeGeometry args={[6.2, 0.9]} />
+      {/* Back Wall Header above Window (y = 6.9 to 7.5, height = 0.6) */}
+      <mesh position={[5.5, 7.2, -7.5]} receiveShadow>
+        <planeGeometry args={[10.0, 0.6]} />
         <meshStandardMaterial color="#18181b" roughness={0.8} />
       </mesh>
-      {/* Bottom Sill Section below Window (y = 0 to 1.4) */}
-      <mesh position={[3.2, 0.7, -5.5]} receiveShadow>
-        <planeGeometry args={[6.2, 1.4]} />
+      {/* Back Wall Sill below Window (y = 0 to 0.7, height = 0.7) */}
+      <mesh position={[5.5, 0.35, -7.5]} receiveShadow>
+        <planeGeometry args={[10.0, 0.7]} />
         <meshStandardMaterial color="#18181b" roughness={0.8} />
       </mesh>
 
-      {/* Back Wall Baseboard Trim (Left of window) */}
-      <mesh position={[-4.45, 0.1, -5.48]} receiveShadow>
-        <boxGeometry args={[9.1, 0.2, 0.04]} />
-        <meshStandardMaterial color="#09090b" roughness={0.5} />
-      </mesh>
-      {/* Back Wall Baseboard Trim (Under window) */}
-      <mesh position={[3.2, 0.1, -5.48]} receiveShadow>
-        <boxGeometry args={[6.2, 0.2, 0.04]} />
-        <meshStandardMaterial color="#09090b" roughness={0.5} />
-      </mesh>
-      {/* Back Wall Baseboard Trim (Right of window) */}
-      <mesh position={[7.65, 0.1, -5.48]} receiveShadow>
-        <boxGeometry args={[2.7, 0.2, 0.04]} />
-        <meshStandardMaterial color="#09090b" roughness={0.5} />
-      </mesh>
-
-      {/* --- PANORAMIC WINDOW WITH NIGHT CITY & GLOWING MOON --- */}
+      {/* --- GIANT DOUBLE-HEIGHT PANORAMIC WINDOW --- */}
       <group
-        position={[3.2, 3.0, -5.48]}
+        position={[5.5, 3.8, -7.48]}
         onPointerOver={(e) => {
           e.stopPropagation();
           document.body.style.cursor = "pointer";
@@ -129,53 +196,51 @@ export function Scene({
         onClick={(e) => {
           e.stopPropagation();
           onInteractProp?.(
-            "Jendela Langit Malam",
-            "Bulan purnama & ribuan bintang di langit malam menemani kerja keras seluruh agensi.",
-            "🌕"
+            isDay ? "Pemandangan Siang Hari" : "Pemandangan Langit Malam",
+            isDay
+              ? "Matahari pagi bersinar cerah di atas kota, energi tim penuh untuk coding!"
+              : "Bulan purnama & ribuan bintang di langit malam menemani kerja keras seluruh agensi.",
+            isDay ? "☀️" : "🌕"
           );
         }}
       >
-        {/* Hollow Architectural Window Frame */}
-        {/* Top Outer Frame */}
-        <mesh position={[0, 1.55, 0]} castShadow receiveShadow>
-          <boxGeometry args={[6.2, 0.12, 0.16]} />
-          <meshStandardMaterial color="#09090b" metalness={0.85} roughness={0.25} />
-        </mesh>
-        {/* Bottom Outer Sill (Deep ledge) */}
-        <mesh position={[0, -1.55, 0.06]} castShadow receiveShadow>
-          <boxGeometry args={[6.35, 0.14, 0.26]} />
-          <meshStandardMaterial color="#09090b" metalness={0.85} roughness={0.25} />
-        </mesh>
-        {/* Left Outer Frame */}
-        <mesh position={[-3.05, 0, 0]} castShadow receiveShadow>
-          <boxGeometry args={[0.12, 3.0, 0.16]} />
-          <meshStandardMaterial color="#09090b" metalness={0.85} roughness={0.25} />
-        </mesh>
-        {/* Right Outer Frame */}
-        <mesh position={[3.05, 0, 0]} castShadow receiveShadow>
-          <boxGeometry args={[0.12, 3.0, 0.16]} />
-          <meshStandardMaterial color="#09090b" metalness={0.85} roughness={0.25} />
-        </mesh>
-
-        {/* Thin Architectural Mullions (Dividers) */}
-        <mesh position={[-1.0, 0, 0.04]}>
-          <boxGeometry args={[0.04, 3.0, 0.06]} />
+        {/* Outer Heavy Steel Frame */}
+        <mesh position={[0, 3.12, 0]} castShadow>
+          <boxGeometry args={[10.0, 0.16, 0.2]} />
           <meshStandardMaterial color="#09090b" metalness={0.9} />
         </mesh>
-        <mesh position={[1.0, 0, 0.04]}>
-          <boxGeometry args={[0.04, 3.0, 0.06]} />
+        <mesh position={[0, -3.12, 0.08]} castShadow>
+          <boxGeometry args={[10.2, 0.18, 0.32]} />
           <meshStandardMaterial color="#09090b" metalness={0.9} />
         </mesh>
-        <mesh position={[0, 0.45, 0.04]}>
-          <boxGeometry args={[6.0, 0.04, 0.06]} />
+        <mesh position={[-4.95, 0, 0]} castShadow>
+          <boxGeometry args={[0.16, 6.2, 0.2]} />
+          <meshStandardMaterial color="#09090b" metalness={0.9} />
+        </mesh>
+        <mesh position={[4.95, 0, 0]} castShadow>
+          <boxGeometry args={[0.16, 6.2, 0.2]} />
           <meshStandardMaterial color="#09090b" metalness={0.9} />
         </mesh>
 
-        {/* Crystal Clear Glass Pane */}
+        {/* Architectural Glass Mullions & Transoms (4x3 Modern Grid) */}
+        {[-2.5, 0, 2.5].map((mx) => (
+          <mesh key={mx} position={[mx, 0, 0.04]}>
+            <boxGeometry args={[0.06, 6.2, 0.08]} />
+            <meshStandardMaterial color="#09090b" metalness={0.9} />
+          </mesh>
+        ))}
+        {[-1.0, 1.0].map((my) => (
+          <mesh key={my} position={[0, my, 0.04]}>
+            <boxGeometry args={[9.8, 0.06, 0.08]} />
+            <meshStandardMaterial color="#09090b" metalness={0.9} />
+          </mesh>
+        ))}
+
+        {/* Clear Double-Height Glass Pane */}
         <mesh position={[0, 0, 0.02]}>
-          <planeGeometry args={[6.0, 3.0]} />
+          <planeGeometry args={[9.8, 6.1]} />
           <meshStandardMaterial
-            color="#bae6fd"
+            color={isDay ? "#bae6fd" : "#93c5fd"}
             transparent
             opacity={0.12}
             roughness={0.05}
@@ -183,165 +248,237 @@ export function Scene({
           />
         </mesh>
 
-        {/* === OUTSIDE WINDOW: DEEP NIGHT SKY, MOON & STARS === */}
-        {/* Deep Night Cosmic Backdrop */}
-        <mesh position={[0, 0, -1.8]}>
-          <planeGeometry args={[16, 9]} />
-          <meshBasicMaterial color="#020617" />
+        {/* === OUTSIDE SKY & CELESTIAL BODIES (DAY VS NIGHT) === */}
+        {/* Sky Backdrop */}
+        <mesh position={[0, 0, -2.2]}>
+          <planeGeometry args={[26, 14]} />
+          <meshBasicMaterial color={isDay ? "#38bdf8" : "#020617"} />
         </mesh>
 
-        {/* 🌕 THE GLOWING FULL MOON (PROMINENTLY CENTERED IN WINDOW) */}
-        <group position={[-0.4, 0.85, -1.2]}>
-          {/* Main Moon 3D Sphere */}
-          <mesh>
-            <sphereGeometry args={[0.72, 32, 32]} />
-            <meshStandardMaterial
-              color="#fffbeb"
-              emissive="#fef08a"
-              emissiveIntensity={3.6}
-              roughness={0.15}
+        {/* ☀️ DAY MODE: GOLDEN RADIANT SUN & CLOUDS */}
+        {isDay && (
+          <group position={[1.5, 1.4, -1.4]}>
+            {/* Sun Sphere */}
+            <mesh>
+              <sphereGeometry args={[0.85, 32, 32]} />
+              <meshBasicMaterial color="#fef08a" />
+            </mesh>
+            {/* Sun Glow Halo */}
+            <mesh position={[0, 0, -0.05]}>
+              <circleGeometry args={[2.4, 32]} />
+              <meshBasicMaterial color="#fed7aa" transparent opacity={0.35} />
+            </mesh>
+            <mesh position={[0, 0, -0.08]}>
+              <circleGeometry args={[4.0, 32]} />
+              <meshBasicMaterial color="#fef08a" transparent opacity={0.15} />
+            </mesh>
+            {/* Warm sunlight beam pouring into studio */}
+            <pointLight color="#fef08a" intensity={4.5} distance={22} />
+
+            {/* Drifting Clouds */}
+            <group position={[-3.5, -0.8, -0.4]}>
+              <mesh position={[0, 0, 0]}>
+                <sphereGeometry args={[0.45, 16, 16]} />
+                <meshBasicMaterial color="#ffffff" transparent opacity={0.8} />
+              </mesh>
+              <mesh position={[0.5, -0.1, 0]}>
+                <sphereGeometry args={[0.35, 16, 16]} />
+                <meshBasicMaterial color="#ffffff" transparent opacity={0.75} />
+              </mesh>
+              <mesh position={[-0.4, -0.1, 0]}>
+                <sphereGeometry args={[0.35, 16, 16]} />
+                <meshBasicMaterial color="#ffffff" transparent opacity={0.75} />
+              </mesh>
+            </group>
+            <group position={[2.8, -1.4, -0.4]}>
+              <mesh position={[0, 0, 0]}>
+                <sphereGeometry args={[0.5, 16, 16]} />
+                <meshBasicMaterial color="#ffffff" transparent opacity={0.8} />
+              </mesh>
+              <mesh position={[0.6, -0.1, 0]}>
+                <sphereGeometry args={[0.38, 16, 16]} />
+                <meshBasicMaterial color="#ffffff" transparent opacity={0.75} />
+              </mesh>
+              <mesh position={[-0.5, -0.1, 0]}>
+                <sphereGeometry args={[0.38, 16, 16]} />
+                <meshBasicMaterial color="#ffffff" transparent opacity={0.75} />
+              </mesh>
+            </group>
+          </group>
+        )}
+
+        {/* 🌙 NIGHT MODE: GLOWING MOON & 60+ STARS */}
+        {!isDay && (
+          <>
+            <group position={[1.5, 1.4, -1.4]}>
+              {/* Moon Sphere */}
+              <mesh>
+                <sphereGeometry args={[0.85, 32, 32]} />
+                <meshStandardMaterial
+                  color="#fffbeb"
+                  emissive="#fef08a"
+                  emissiveIntensity={3.8}
+                  roughness={0.15}
+                />
+              </mesh>
+              {/* Craters */}
+              <mesh position={[-0.2, 0.15, 0.8]} rotation={[0, 0, 0.4]}>
+                <circleGeometry args={[0.18, 16]} />
+                <meshBasicMaterial color="#fde047" transparent opacity={0.35} />
+              </mesh>
+              <mesh position={[0.26, -0.18, 0.78]}>
+                <circleGeometry args={[0.22, 16]} />
+                <meshBasicMaterial color="#facc15" transparent opacity={0.3} />
+              </mesh>
+              {/* Halo */}
+              <mesh position={[0, 0, -0.06]}>
+                <circleGeometry args={[1.8, 32]} />
+                <meshBasicMaterial color="#38bdf8" transparent opacity={0.32} />
+              </mesh>
+              <mesh position={[0, 0, -0.08]}>
+                <circleGeometry args={[2.8, 32]} />
+                <meshBasicMaterial color="#60a5fa" transparent opacity={0.14} />
+              </mesh>
+              <pointLight color="#bae6fd" intensity={4.5} distance={22} />
+            </group>
+
+            {/* Twinkling Night Stars */}
+            {[
+              [-4.2, 2.2, -1.8, 0.04],
+              [-3.6, 1.5, -1.8, 0.03],
+              [-3.0, 2.4, -1.8, 0.045],
+              [-2.4, 1.1, -1.8, 0.025],
+              [-1.8, 2.1, -1.8, 0.05],
+              [-1.1, 1.3, -1.8, 0.03],
+              [-0.4, 2.5, -1.8, 0.04],
+              [0.2, 1.8, -1.8, 0.035],
+              [0.8, 2.6, -1.8, 0.05],
+              [3.4, 2.3, -1.8, 0.04],
+              [4.1, 1.6, -1.8, 0.045],
+              [4.6, 2.5, -1.8, 0.035],
+              [-4.0, 0.5, -1.8, 0.03],
+              [-1.5, 0.6, -1.8, 0.035],
+              [3.8, 0.4, -1.8, 0.03],
+            ].map(([sx, sy, sz, radius], idx) => (
+              <mesh key={idx} position={[sx, sy, sz]}>
+                <sphereGeometry args={[radius, 8, 8]} />
+                <meshBasicMaterial color="#ffffff" />
+              </mesh>
+            ))}
+          </>
+        )}
+
+        {/* City Skyline Silhouettes */}
+        <group position={[0, -1.4, -1.0]}>
+          {/* Skyscraper 1 */}
+          <mesh position={[-3.8, 0.5, 0]}>
+            <boxGeometry args={[1.1, 2.8, 0.1]} />
+            <meshStandardMaterial color={isDay ? "#cbd5e1" : "#090d16"} roughness={0.7} />
+          </mesh>
+          <mesh position={[-3.8, 0.8, 0.06]}>
+            <planeGeometry args={[0.8, 1.8]} />
+            <meshBasicMaterial
+              color={isDay ? "#38bdf8" : "#fef08a"}
+              transparent
+              opacity={isDay ? 0.35 : 0.65}
             />
           </mesh>
-          {/* Moon Crater Accents */}
-          <mesh position={[-0.18, 0.12, 0.68]} rotation={[0, 0, 0.4]}>
-            <circleGeometry args={[0.15, 16]} />
-            <meshBasicMaterial color="#fde047" transparent opacity={0.35} />
-          </mesh>
-          <mesh position={[0.22, -0.16, 0.66]}>
-            <circleGeometry args={[0.18, 16]} />
-            <meshBasicMaterial color="#facc15" transparent opacity={0.3} />
-          </mesh>
-          {/* Soft Moonlight Glow Halo */}
-          <mesh position={[0, 0, -0.06]}>
-            <circleGeometry args={[1.55, 32]} />
-            <meshBasicMaterial color="#38bdf8" transparent opacity={0.32} />
-          </mesh>
-          <mesh position={[0, 0, -0.08]}>
-            <circleGeometry args={[2.5, 32]} />
-            <meshBasicMaterial color="#60a5fa" transparent opacity={0.14} />
-          </mesh>
-          {/* Cool Moonlight shining into the office */}
-          <pointLight color="#bae6fd" intensity={4.2} distance={18} />
-        </group>
 
-        {/* Twinkling Night Stars */}
-        {[
-          [-2.6, 1.25, -1.4, 0.035],
-          [-2.1, 0.9, -1.4, 0.025],
-          [-1.8, 1.35, -1.4, 0.03],
-          [-1.4, 0.6, -1.4, 0.02],
-          [-1.1, 1.1, -1.4, 0.04],
-          [-0.6, 1.3, -1.4, 0.025],
-          [-0.2, 0.8, -1.4, 0.035],
-          [0.3, 1.35, -1.4, 0.02],
-          [0.8, 1.1, -1.4, 0.04],
-          [1.0, 1.4, -1.4, 0.025],
-          [2.4, 1.25, -1.4, 0.03],
-          [2.7, 0.7, -1.4, 0.035],
-          [-2.4, 0.3, -1.4, 0.02],
-          [-0.8, 0.4, -1.4, 0.025],
-          [2.5, 0.2, -1.4, 0.02],
-        ].map(([sx, sy, sz, radius], idx) => (
-          <mesh key={idx} position={[sx, sy, sz]}>
-            <sphereGeometry args={[radius, 8, 8]} />
-            <meshBasicMaterial color="#ffffff" />
+          {/* Skyscraper 2 with Antenna & Beacon */}
+          <mesh position={[-2.2, 1.0, 0]}>
+            <boxGeometry args={[1.3, 3.8, 0.1]} />
+            <meshStandardMaterial color={isDay ? "#94a3b8" : "#0b1329"} roughness={0.7} />
           </mesh>
-        ))}
-
-        {/* Distant City Skyline Silhouettes with Glowing Windows */}
-        <group position={[0, -0.65, -0.8]}>
-          {/* Skyscraper 1 */}
-          <mesh position={[-2.4, 0.25, 0]}>
-            <boxGeometry args={[0.65, 1.3, 0.1]} />
-            <meshStandardMaterial color="#090d16" roughness={0.9} />
+          <mesh position={[-2.2, 1.1, 0.06]}>
+            <planeGeometry args={[1.0, 2.6]} />
+            <meshBasicMaterial
+              color={isDay ? "#bae6fd" : "#38bdf8"}
+              transparent
+              opacity={isDay ? 0.45 : 0.6}
+            />
           </mesh>
-          {/* Windows Skyscraper 1 */}
-          <mesh position={[-2.4, 0.35, 0.06]}>
-            <planeGeometry args={[0.45, 0.6]} />
-            <meshBasicMaterial color="#fef08a" transparent opacity={0.65} />
-          </mesh>
-
-          {/* Skyscraper 2 with Antenna & Flashing Beacon */}
-          <mesh position={[-1.5, 0.5, 0]}>
-            <boxGeometry args={[0.8, 1.8, 0.1]} />
-            <meshStandardMaterial color="#0b1329" roughness={0.9} />
-          </mesh>
-          <mesh position={[-1.5, 0.5, 0.06]}>
-            <planeGeometry args={[0.55, 1.1]} />
-            <meshBasicMaterial color="#38bdf8" transparent opacity={0.55} />
-          </mesh>
-          <mesh position={[-1.5, 1.5, 0]}>
-            <cylinderGeometry args={[0.015, 0.015, 0.4, 6]} />
+          <mesh position={[-2.2, 3.1, 0]}>
+            <cylinderGeometry args={[0.02, 0.02, 0.6, 6]} />
             <meshBasicMaterial color="#ef4444" />
           </mesh>
 
           {/* Skyscraper 3 */}
-          <mesh position={[-0.5, 0.15, 0]}>
-            <boxGeometry args={[0.9, 1.1, 0.1]} />
-            <meshStandardMaterial color="#090d16" roughness={0.9} />
+          <mesh position={[-0.5, 0.4, 0]}>
+            <boxGeometry args={[1.4, 2.5, 0.1]} />
+            <meshStandardMaterial color={isDay ? "#cbd5e1" : "#090d16"} roughness={0.7} />
           </mesh>
 
           {/* Skyscraper 4 */}
-          <mesh position={[0.5, 0.4, 0]}>
-            <boxGeometry args={[0.85, 1.6, 0.1]} />
-            <meshStandardMaterial color="#0f172a" roughness={0.9} />
+          <mesh position={[1.4, 0.9, 0]}>
+            <boxGeometry args={[1.3, 3.4, 0.1]} />
+            <meshStandardMaterial color={isDay ? "#94a3b8" : "#0f172a"} roughness={0.7} />
           </mesh>
-          <mesh position={[0.5, 0.45, 0.06]}>
-            <planeGeometry args={[0.6, 0.9]} />
-            <meshBasicMaterial color="#fef08a" transparent opacity={0.6} />
+          <mesh position={[1.4, 1.0, 0.06]}>
+            <planeGeometry args={[0.9, 2.2]} />
+            <meshBasicMaterial
+              color={isDay ? "#38bdf8" : "#fef08a"}
+              transparent
+              opacity={isDay ? 0.35 : 0.6}
+            />
           </mesh>
 
           {/* Skyscraper 5 */}
-          <mesh position={[1.5, 0.2, 0]}>
-            <boxGeometry args={[0.7, 1.2, 0.1]} />
-            <meshStandardMaterial color="#090d16" roughness={0.9} />
+          <mesh position={[3.2, 0.6, 0]}>
+            <boxGeometry args={[1.2, 2.9, 0.1]} />
+            <meshStandardMaterial color={isDay ? "#cbd5e1" : "#090d16"} roughness={0.7} />
           </mesh>
 
           {/* Skyscraper 6 */}
-          <mesh position={[2.4, 0.45, 0]}>
-            <boxGeometry args={[0.75, 1.7, 0.1]} />
-            <meshStandardMaterial color="#0b1329" roughness={0.9} />
+          <mesh position={[4.6, 1.1, 0]}>
+            <boxGeometry args={[1.2, 4.0, 0.1]} />
+            <meshStandardMaterial color={isDay ? "#94a3b8" : "#0b1329"} roughness={0.7} />
           </mesh>
-          <mesh position={[2.4, 0.5, 0.06]}>
-            <planeGeometry args={[0.5, 1.0]} />
-            <meshBasicMaterial color="#38bdf8" transparent opacity={0.5} />
+          <mesh position={[4.6, 1.2, 0.06]}>
+            <planeGeometry args={[0.8, 2.6]} />
+            <meshBasicMaterial
+              color={isDay ? "#bae6fd" : "#38bdf8"}
+              transparent
+              opacity={isDay ? 0.45 : 0.55}
+            />
           </mesh>
         </group>
       </group>
 
-      {/* Side Wall (Left) */}
-      <mesh position={[-9, 2.75, 0]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
-        <planeGeometry args={[14, 5.5]} />
-        <meshStandardMaterial color="#27272a" roughness={0.7} />
-      </mesh>
-      {/* Side Wall Baseboard */}
-      <mesh position={[-8.98, 0.1, 0]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
-        <boxGeometry args={[14, 0.2, 0.04]} />
-        <meshStandardMaterial color="#09090b" />
-      </mesh>
-
-      {/* --- PROPS & ACCENTS --- */}
-      {/* Whiteboard on Left Wall */}
+      {/* --- PROPS & ACCENTS ACROSS 2 FLOORS --- */}
+      {/* Floor 2: Large Strategic Whiteboard Kanban */}
       <WallWhiteboard
-        position={[-8.95, 2.8, -1.2]}
+        position={[-10.95, 5.2, -3.5]}
         rotation={[0, Math.PI / 2, 0]}
         onInteract={onInteractProp}
       />
 
-      {/* Bookshelf on Back Wall (Left side) */}
-      <WallBookshelf position={[-4.5, 2.8, -5.35]} onInteract={onInteractProp} />
+      {/* Floor 2: Architecture Bookshelf & Archives */}
+      <WallBookshelf position={[-6.0, 5.2, -7.38]} onInteract={onInteractProp} />
+
+      {/* Floor 1: Conference & Sprint Review Meeting Table */}
+      <ConferenceMeetingTable position={[6.0, 0, -1.8]} onInteract={onInteractProp} />
+
+      {/* Floor 1: Break Lounge Corner (Front-Right) */}
+      <BreakLoungeArea position={[7.0, 0, 4.5]} onInteract={onInteractProp} />
+
+      {/* Floor 1: Studio Espresso Machine Bar */}
+      <CoffeeEspressoBar position={[4.8, 0, 5.2]} onInteract={onInteractProp} />
+
+      {/* Floor 1: HQ Entrance & Freelancer Door (Right Wall) */}
+      <EntranceDoor position={[10.95, 1.5, 1.0]} onInteract={onInteractProp} />
 
       {/* Indoor Potted Plants */}
-      <PottedPlant position={[-7.8, 0, -4.6]} scale={1.25} onInteract={onInteractProp} />
-      <PottedPlant position={[7.5, 0, -4.6]} scale={1.15} onInteract={onInteractProp} />
-      <PottedPlant position={[-8.0, 0, 4.2]} scale={1.05} onInteract={onInteractProp} />
+      <PottedPlant position={[-10.0, 0, -6.5]} scale={1.3} onInteract={onInteractProp} />
+      <PottedPlant position={[9.8, 0, -6.5]} scale={1.2} onInteract={onInteractProp} />
+      <PottedPlant position={[-10.0, 0, 6.2]} scale={1.1} onInteract={onInteractProp} />
+      <PottedPlant position={[-0.8, 3.6, -7.0]} scale={1.0} onInteract={onInteractProp} />
 
-      {/* Break Lounge Corner (Front-Right Area) */}
-      <BreakLoungeArea position={[5.2, 0, 3.0]} onInteract={onInteractProp} />
+      {/* Pendant Lights over Floor 1 Engineering Desks */}
+      <PendantLamp position={[-3.0, 4.8, 1.0]} onInteract={onInteractProp} />
+      <PendantLamp position={[3.0, 4.8, 1.0]} onInteract={onInteractProp} />
 
-      {/* Pendant Lights Hanging from Ceiling above Desks */}
-      <PendantLamp position={[-2.6, 3.8, -1]} onInteract={onInteractProp} />
-      <PendantLamp position={[3.2, 3.8, -1]} onInteract={onInteractProp} />
+      {/* Pendant Lights over Floor 2 Mezzanine Desks */}
+      <PendantLamp position={[-6.0, 6.8, -3.2]} onInteract={onInteractProp} />
 
       {/* Active Scene Content (Desks, Avatars, etc.) */}
       {children}

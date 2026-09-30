@@ -1,14 +1,14 @@
 "use client";
 
-import { DESK_POS, ROLE_RING_COLOR } from "./layout";
+import { DESK_POS_3D, ROLE_RING_COLOR } from "./layout";
 import { getScreenTexture } from "./ScreenTextures";
 
-export function DeskProp({ role, x, z }: { role?: string; x: number; z: number }) {
+export function DeskProp({ role, x, y = 0, z }: { role?: string; x: number; y?: number; z: number }) {
   const accentColor = role ? ROLE_RING_COLOR[role] ?? "#38bdf8" : "#38bdf8";
   const screenTexture = getScreenTexture(role ?? "dev");
 
   return (
-    <group position={[x, 0, z]}>
+    <group position={[x, y, z]}>
       {/* --- DESK STRUCTURE --- */}
       {/* Table Top (Walnut Wood) */}
       <mesh position={[0, 0.72, 0]} castShadow receiveShadow>
@@ -91,8 +91,8 @@ export function DeskProp({ role, x, z }: { role?: string; x: number; z: number }
         <meshStandardMaterial color="#18181b" roughness={0.4} />
       </mesh>
       {/* Mousepad */}
-      <mesh position={[0.34, 0.748, 0.08]} receiveShadow>
-        <planeGeometry args={[0.18, 0.22]} rotation={[-Math.PI / 2, 0, 0]} />
+      <mesh position={[0.34, 0.748, 0.08]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[0.18, 0.22]} />
         <meshStandardMaterial color="#27272a" roughness={0.8} />
       </mesh>
       {/* Mouse */}
@@ -144,8 +144,8 @@ export function DeskProp({ role, x, z }: { role?: string; x: number; z: number }
 export function AllDesks() {
   return (
     <>
-      {Object.entries(DESK_POS).map(([role, [x, z]]) => (
-        <DeskProp key={role} role={role} x={x} z={z} />
+      {Object.entries(DESK_POS_3D).map(([role, [x, y, z]]) => (
+        <DeskProp key={role} role={role} x={x} y={y} z={z} />
       ))}
     </>
   );

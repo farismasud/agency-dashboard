@@ -1,307 +1,287 @@
 "use client";
 
-import { DESK_POS } from "./layout";
+import { DESK_POS_3D } from "./layout";
 
 export interface OfficeSpot {
   id: string;
   x: number;
   z: number;
-  y: number; // 0 for standing/floor, 0.38 for chair, 0.24 for sofa
+  y: number; // ground floor (0), chair (0.38), sofa (0.24), floor 2 (3.6), floor 2 chair (3.98)
   faceAngle: number;
   actionState: "sit" | "idle" | "interact-right" | "interact-left";
-  category: "desk" | "sofa" | "whiteboard" | "waterCooler" | "bookshelf" | "window" | "plant" | "wander";
+  category: "desk" | "sofa" | "whiteboard" | "waterCooler" | "bookshelf" | "window" | "plant" | "coffee" | "balcony" | "meeting" | "wander";
   label: string;
+  floor: 1 | 2;
 }
 
-// Ergonomic chair seat height: 0.38
-// Lounge sofa seat height: 0.24
+// Seat cushion heights: ground floor chair: 0.38, floor 2 chair: 3.98
 export function getDeskSpot(role: string): OfficeSpot {
-  const desk = DESK_POS[role] ?? [-4, -2];
+  const [dx, dy, dz] = DESK_POS_3D[role] ?? [-3.0, 0, -1.0];
+  const floor: 1 | 2 = dy > 1.0 ? 2 : 1;
   return {
     id: `desk-${role}`,
-    x: desk[0],
-    z: desk[1] + 0.65, // Exact chair center
-    y: 0.38, // Elevated onto chair cushion
+    x: dx,
+    z: dz + 0.65, // Exact chair center
+    y: dy + 0.38, // Elevated onto chair cushion
     faceAngle: Math.PI, // Facing desk/monitor
     actionState: "sit",
     category: "desk",
-    label: "Meja Kerja",
+    label: `Meja ${role.toUpperCase()} (Lantai ${floor})`,
+    floor,
   };
 }
 
 export function getRandomOfficeSpots(role: string): OfficeSpot[] {
   const ownDesk = getDeskSpot(role);
 
-  return [
+  // Common shared waypoints across both floors
+  const spots: OfficeSpot[] = [
     ownDesk,
-    // Break Lounge Sofa (sitting on cushions)
+
+    // === LANTAI 1 (Ground Floor) ===
+    // Break Lounge Sofa (sitting squarely on cushions)
     {
       id: "sofa-left",
-      x: 4.25,
-      z: 3.0,
-      y: 0.24, // On sofa cushion
+      x: 6.05,
+      z: 4.5,
+      y: 0,
       faceAngle: 0,
       actionState: "sit",
       category: "sofa",
-      label: "Sofa Santai",
+      label: "Sofa Santai (Lt. 1)",
+      floor: 1,
     },
     {
       id: "sofa-right",
-      x: 4.95,
-      z: 3.0,
-      y: 0.24, // On sofa cushion
+      x: 6.75,
+      z: 4.5,
+      y: 0,
       faceAngle: 0,
       actionState: "sit",
       category: "sofa",
-      label: "Sofa Santai",
+      label: "Sofa Santai (Lt. 1)",
+      floor: 1,
     },
-    // Water Cooler
+    // Espresso Coffee Bar (standing in front of bar counter, facing machine)
+    {
+      id: "coffee-bar",
+      x: 4.8,
+      z: 4.4,
+      y: 0,
+      faceAngle: 0,
+      actionState: "interact-right",
+      category: "coffee",
+      label: "Mesin Espresso (Lt. 1)",
+      floor: 1,
+    },
+    // Water Dispenser (standing in front of tap cavity, facing dispenser)
     {
       id: "water-cooler",
-      x: 6.35,
-      z: 2.85,
+      x: 8.2,
+      z: 5.0,
       y: 0,
-      faceAngle: -Math.PI / 2,
+      faceAngle: Math.PI,
       actionState: "interact-left",
       category: "waterCooler",
-      label: "Galon Air",
+      label: "Galon Air Sejuk (Lt. 1)",
+      floor: 1,
     },
-    // Whiteboard Kanban
+    // Conference / Meeting Table Chairs
     {
-      id: "whiteboard-todo",
-      x: -7.6,
-      z: -1.6,
+      id: "meeting-table-1",
+      x: 6.0,
+      z: -0.95,
       y: 0,
+      faceAngle: Math.PI, // Sitting on front chair facing meeting table
+      actionState: "sit",
+      category: "meeting",
+      label: "Meja Rapat Tim (Lt. 1)",
+      floor: 1,
+    },
+    {
+      id: "meeting-table-2",
+      x: 6.0,
+      z: -2.65,
+      y: 0,
+      faceAngle: 0, // Sitting on back chair facing meeting table
+      actionState: "sit",
+      category: "meeting",
+      label: "Meja Rapat Tim (Lt. 1)",
+      floor: 1,
+    },
+    {
+      id: "meeting-table-3",
+      x: 5.0,
+      z: -0.95,
+      y: 0,
+      faceAngle: Math.PI, // Sitting on front-left chair
+      actionState: "sit",
+      category: "meeting",
+      label: "Meja Rapat Tim (Lt. 1)",
+      floor: 1,
+    },
+    // Entrance / Freelancer Door
+    {
+      id: "entrance-door",
+      x: 10.1,
+      z: 1.0,
+      y: 0,
+      faceAngle: -Math.PI / 2,
+      actionState: "idle",
+      category: "wander",
+      label: "Pintu Masuk Utama (Lt. 1)",
+      floor: 1,
+    },
+    // Ground Floor Panoramic Window View
+    {
+      id: "window-floor1",
+      x: 5.5,
+      z: -6.6,
+      y: 0,
+      faceAngle: Math.PI,
+      actionState: "idle",
+      category: "window",
+      label: "Jendela Panoramik (Lt. 1)",
+      floor: 1,
+    },
+
+    // === LANTAI 2 (Mezzanine Floor, y = 3.6) ===
+    // Mezzanine Glass Balcony Overlook (Leaning on railing looking at Floor 1)
+    {
+      id: "mezzanine-balcony-left",
+      x: -6.5,
+      z: 0.5,
+      y: 3.6,
+      faceAngle: 0, // Looking forward over balcony
+      actionState: "idle",
+      category: "balcony",
+      label: "Balkon Kaca Mezzanine (Lt. 2)",
+      floor: 2,
+    },
+    {
+      id: "mezzanine-balcony-right",
+      x: -2.0,
+      z: 0.5,
+      y: 3.6,
+      faceAngle: 0,
+      actionState: "idle",
+      category: "balcony",
+      label: "Balkon Kaca Mezzanine (Lt. 2)",
+      floor: 2,
+    },
+    // Large Wall Whiteboard Kanban (Floor 2)
+    {
+      id: "whiteboard-kanban",
+      x: -9.8,
+      z: -3.5,
+      y: 3.6,
       faceAngle: -Math.PI / 2,
       actionState: "interact-right",
       category: "whiteboard",
-      label: "Papan Kanban",
+      label: "Papan Kanban Strategis (Lt. 2)",
+      floor: 2,
     },
+    // Architecture Bookshelf & Archives (Floor 2)
     {
-      id: "whiteboard-progress",
-      x: -7.6,
-      z: -0.8,
-      y: 0,
-      faceAngle: -Math.PI / 2,
-      actionState: "interact-right",
-      category: "whiteboard",
-      label: "Papan Kanban",
-    },
-    // Bookshelf
-    {
-      id: "bookshelf",
-      x: -4.5,
-      z: -4.6,
-      y: 0,
+      id: "bookshelf-floor2",
+      x: -6.0,
+      z: -6.6,
+      y: 3.6,
       faceAngle: Math.PI,
       actionState: "idle",
       category: "bookshelf",
-      label: "Rak Buku",
+      label: "Rak Dokumen & Arsitektur (Lt. 2)",
+      floor: 2,
     },
-    // Panoramic Window (Looking at Moon & Stars)
-    {
-      id: "window-view",
-      x: 2.6,
-      z: -4.6,
-      y: 0,
-      faceAngle: Math.PI,
-      actionState: "idle",
-      category: "window",
-      label: "Jendela Bulan",
-    },
-    {
-      id: "window-view-2",
-      x: 4.2,
-      z: -4.6,
-      y: 0,
-      faceAngle: Math.PI,
-      actionState: "idle",
-      category: "window",
-      label: "Jendela Bintang",
-    },
-    // Indoor Plant Corner
-    {
-      id: "plant-left",
-      x: -6.8,
-      z: -4.0,
-      y: 0,
-      faceAngle: -Math.PI / 4,
-      actionState: "idle",
-      category: "plant",
-      label: "Sudut Tanaman",
-    },
-    // Open Area Wandering
-    {
-      id: "open-center",
-      x: 0.5,
-      z: 0.5,
-      y: 0,
-      faceAngle: Math.PI / 3,
-      actionState: "idle",
-      category: "wander",
-      label: "Area Tengah",
-    },
-    {
-      id: "open-front",
-      x: -1.8,
-      z: 3.2,
-      y: 0,
-      faceAngle: -Math.PI / 6,
-      actionState: "idle",
-      category: "wander",
-      label: "Koridor Depan",
-    },
-    // Visiting Colleagues' Desks (Standing beside them)
-    ...(["pm", "dev", "qa", "analyst"]
-      .filter((r) => r !== role)
-      .map((colleague) => {
-        const desk = DESK_POS[colleague] ?? [0, 0];
-        return {
-          id: `visit-${colleague}`,
-          x: desk[0] + 0.85,
-          z: desk[1] + 0.5,
-          y: 0,
-          faceAngle: -Math.PI / 2,
-          actionState: "interact-right" as const,
-          category: "wander" as const,
-          label: `Diskusi dengan ${colleague.toUpperCase()}`,
-        };
-      })),
   ];
+
+  // Also allow visiting colleague desks on the same floor
+  const colleagueDesks = Object.entries(DESK_POS_3D)
+    .filter(([r]) => r !== role)
+    .map(([colleague, [dx, dy, dz]]) => {
+      const fl: 1 | 2 = dy > 1.0 ? 2 : 1;
+      return {
+        id: `visit-${colleague}`,
+        x: dx + 0.85,
+        z: dz + 0.5,
+        y: dy,
+        faceAngle: -Math.PI / 2,
+        actionState: "interact-right" as const,
+        category: "wander" as const,
+        label: `Diskusi dengan ${colleague.toUpperCase()} (Lt. ${fl})`,
+        floor: fl,
+      };
+    });
+
+  return [...spots, ...colleagueDesks];
 }
 
-// Agency dialogue lines for inter-agent interactions
+// Dialogues for all 8 roles
 export const AGENT_DIALOGUES: Record<string, Record<string, string[]>> = {
   pm: {
-    dev: [
-      "Pingot, modul invoice siap dideploy?",
-      "Sprint ini target selesai sebelum Jumat ya!",
-      "Prioritaskan PR rekonsiliasi GL dulu ya!",
-    ],
-    qa: [
-      "Risko, ada bug regression di PR terbaru?",
-      "Tolong pastikan balance guard tetap 11 ya!",
-    ],
-    analyst: [
-      "Lulu, bagaimana audit saldo historis O11?",
-      "Bagus, 5 trade account sudah zero diff!",
-    ],
-    whiteboard: [
-      "Menyusun prioritas sprint berikutnya 📋",
-      "Update milestone roadmap di board...",
-    ],
-    waterCooler: [
-      "Ngopi dulu sambil mantau sprint ☕",
-      "Ambil air dingin, meeting seharian 💧",
-    ],
-    sofa: [
-      "Brainstorming roadmap di sofa 🛋️",
-      "Rehat sejenak sebelum sprint review...",
-    ],
-    window: [
-      "Melihat bulan purnama di luar jendela 🌕",
-      "Malam tenang, sprint on track! ✨",
-    ],
-    desk: [
-      "Mengkoordinasi task & roadmap...",
-      "Review PR & approval pipeline...",
-    ],
+    dev: ["Sprint target kita deploy modul invoice!", "Prioritaskan PR rekonsiliasi GL ya!"],
+    qa: ["Risko, ada bug regression di PR terbaru?", "Pastikan guard baseline tetap 11 ya!"],
+    analyst: ["Lulu, bagaimana audit saldo historis O11?", "Semua trade account aman zero-diff!"],
+    devops: ["Bimo, cluster staging siap untuk deploy?", "Monitor resource usage saat migration!"],
+    whiteboard: ["Menyusun prioritas sprint 42 📋", "Update milestone Odoo 19 di board..."],
+    balcony: ["Memantau suasana kerja tim dari balkon 🏢", "Tim engineering solid di lantai 1!"],
+    sofa: ["Brainstorming roadmap di sofa lounge 🛋️"],
+    window: ["Melihat langit kota yang megah dari kantor 🌆"],
+    desk: ["Mengkoordinasi task & approval pipeline...", "Review requirement klien & milestone..."],
   },
   dev: {
-    qa: [
-      "Risko, tolong review diff PR #108 ya!",
-      "Test unit-nya udah gua update, monggo dicek!",
-    ],
-    pm: [
-      "Zaki, logic partial reconcile udah beres!",
-      "Branch feature siap dimerge ke staging!",
-    ],
-    analyst: [
-      "Lulu, field account_id di O19 udah dipetakan?",
-      "Query SQL-nya udah net 0 ya!",
-    ],
-    whiteboard: [
-      "Cek backlog ticket yang belum diambil 🔍",
-      "Pindahkan task ke 'Code Review' 🚀",
-    ],
-    waterCooler: [
-      "Isi bensin kopi dulu biar coding lancar ☕",
-      "Minum air putih dingin seger banget 💧",
-    ],
-    sofa: [
-      "Chilling sejenak sambil mikir algoritma 💡",
-      "Diskusi santai refactoring kode...",
-    ],
-    window: [
-      "Bintang di langit malam keren banget 🌟",
-      "Ngoding larut malam ditemani bulan 🌕",
-    ],
-    desk: [
-      "Writing clean code in VS Code 💻",
-      "Refactoring business logic...",
-    ],
+    qa: ["Risko, diff PR #108 siap ditest!", "Test unit-nya udah gua update!"],
+    dba: ["Deni, query balance move_line-nya udah di-index kan?"],
+    devops: ["Bimo, container app sudah siap dibuild!"],
+    coffee: ["Bikin espresso dulu biar coding lancar ☕", "Double shot espresso for peak performance!"],
+    waterCooler: ["Minum air putih dingin seger 💧"],
+    whiteboard: ["Pindahkan task ke 'Code Review' 🚀"],
+    sofa: ["Chilling sejenak sambil mikir algoritma 💡"],
+    window: ["Pemandangan luar jendela bikin rileks ✨"],
+    desk: ["Writing clean code in VS Code 💻", "Refactoring migration logic..."],
   },
   qa: {
-    dev: [
-      "Pingot, PR #108 lolos semua test suite!",
-      "Aman! Zero diff GL vs Aging terkonfirmasi ✔",
-    ],
-    pm: [
-      "Zaki, guard check baseline 11 valid!",
-      "Regression test hijau semua!",
-    ],
-    analyst: [
-      "Lulu, data test sudah sesuai ledger!",
-    ],
-    waterCooler: [
-      "Rehat sejenak setelah running test suite 💧",
-      "Ambil air minum sambil nunggu CI build...",
-    ],
-    whiteboard: [
-      "Memeriksa checklist QA sebelum rilis 📋",
-      "Semua test case bertanda hijau ✅",
-    ],
-    sofa: [
-      "Duduk santai di sofa, build hijau semua ✨",
-    ],
-    window: [
-      "Pemandangan malam yang indah dari kantor 🌃",
-    ],
-    desk: [
-      "Running automated test suites 🧪",
-      "Verifying edge cases & diff...",
-    ],
+    dev: ["Pingot, PR #108 lolos semua test suite!", "Aman! Zero-diff GL vs Aging terkonfirmasi ✔"],
+    security: ["Bagas, audit iron rules sudah hijau semua!"],
+    waterCooler: ["Rehat sejenak setelah running automated test 💧"],
+    whiteboard: ["Memeriksa checklist QA sebelum rilis 📋"],
+    meeting: ["Review hasil test coverage di meja meeting 📊"],
+    desk: ["Running automated test suites 🧪", "Verifying edge cases & diff..."],
   },
   analyst: {
-    pm: [
-      "Zaki, analisa selisih data historis sudah siap!",
-      "Semua akun dagang sudah 100% tally!",
-    ],
-    dev: [
-      "Pingot, ini referensi field legacy dari O11 ya.",
-      "Struktur data O19 sudah sinkron 100%.",
-    ],
-    whiteboard: [
-      "Memetakan ERD & diagram relasi tabel...",
-      "Menganalisis skema O11 vs O19 📊",
-    ],
-    bookshelf: [
-      "Membaca dokumentasi arsitektur sistem 📚",
-      "Mengecek kamus data referensi...",
-    ],
-    waterCooler: [
-      "Minum air putih dulu biar fokus 💧",
-    ],
-    sofa: [
-      "Membaca report ringkasan di sofa 🛋️",
-    ],
-    window: [
-      "Inspirasi analisis datang di malam hari 🌕",
-    ],
-    desk: [
-      "Investigating database records 🗄️",
-      "Auditing accounting ledger...",
-    ],
+    pm: ["Zaki, analisa selisih data historis tuntas!", "Balance Sheet 2021 cocok 100%!"],
+    dba: ["Deni, struktur tabel O19 sudah sinkron dengan O11."],
+    bookshelf: ["Membaca dokumentasi arsitektur Odoo 📚"],
+    balcony: ["Menganalisis performa data dari balkon 📈"],
+    desk: ["Auditing accounting ledger records 🗄️", "Verifying journal entries consistency..."],
+  },
+  devops: {
+    dev: ["Pingot, build Docker image selesai dalam 42 detik!"],
+    dba: ["Deni, volume persistent Postgres sudah di-backup."],
+    desk: ["Monitoring Kubernetes cluster & Traefik SSL 🐳", "Optimizing container CPU & memory..."],
+    coffee: ["Espresso break sejenak sebelum maintenance ☕"],
+    waterCooler: ["Isi ulang botol minum di galon 💧"],
+  },
+  dba: {
+    dev: ["Query query plan sudah optimal dengan index baru!"],
+    analyst: ["Tabel account_move_line sudah terverifikasi double-entry."],
+    desk: ["Running VACUUM ANALYZE & audit index 🗄️", "Verifying foreign key constraints..."],
+    meeting: ["Diskusi kapasitas penyimpanan database di meja rapat."],
+    waterCooler: ["Ambil air sejuk dulu biar fokus 💧"],
+  },
+  security: {
+    pm: ["Zaki, Balance Guard check baseline 11 valid & locked!"],
+    qa: ["Semua akses endpoint JSON-RPC aman dan tervalidasi."],
+    balcony: ["Patroli integritas sistem dari lantai 2 🛡️"],
+    whiteboard: ["Checklist Iron Rules: 4/4 Enforced 🔒"],
+    desk: ["Scanning security vulnerabilities & token leaks 🛡️", "Auditing permission and credentials..."],
+  },
+  designer: {
+    pm: ["Zaki, desain command center 2 lantai sudah siap!"],
+    dev: ["Pingot, token desain & CSS sudah diekspor ke Tailwind."],
+    balcony: ["Mencari inspirasi visual dari balkon kaca 🎨"],
+    sofa: ["Sketching wireframe baru di iPad ✏️"],
+    desk: ["Crafting isometric UI components in Figma 🎨", "Polishing design system & colors..."],
   },
 };
 

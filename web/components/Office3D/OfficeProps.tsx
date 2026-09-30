@@ -431,29 +431,469 @@ export function PendantLamp({
       </mesh>
       {/* Real Downward Spotlight */}
       {lit && (
-        <>
-          <spotLight
-            position={[0, -0.08, 0]}
-            intensity={4.8}
-            distance={8.0}
-            angle={0.65}
-            penumbra={0.7}
-            color="#fef3c7"
-            castShadow
-            shadow-bias={-0.0001}
-          />
-          {/* Volumetric Warm Light Beam Cone */}
-          <mesh position={[0, -1.4, 0]}>
-            <cylinderGeometry args={[0.15, 1.4, 2.6, 24, 1, true]} />
-            <meshBasicMaterial
-              color="#fef08a"
-              transparent
-              opacity={0.065}
-              depthWrite={false}
+        <spotLight
+          position={[0, -0.08, 0]}
+          intensity={2.8}
+          distance={10.0}
+          angle={0.8}
+          penumbra={0.9}
+          color="#fef3c7"
+          castShadow
+          shadow-bias={-0.0001}
+        />
+      )}
+    </group>
+  );
+}
+
+// Architectural Floating Open-Riser Staircase from Floor 1 to Floor 2
+export function ArchitecturalStaircase({
+  position,
+  onInteract,
+}: {
+  position: [number, number, number];
+} & PropInteractHandler) {
+  const [hovered, setHovered] = useState(false);
+  const steps = 14;
+  const totalHeight = 3.6;
+  const totalDepth = 4.2;
+
+  return (
+    <group
+      position={position}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        setHovered(true);
+        document.body.style.cursor = "pointer";
+      }}
+      onPointerOut={() => {
+        setHovered(false);
+        document.body.style.cursor = "auto";
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onInteract?.(
+          "Tangga Arsitektural",
+          "Akses lantai 1 (Engineering & Ops) ke lantai 2 (Mezzanine Strategy & Architecture).",
+          "🪜"
+        );
+      }}
+    >
+      {/* Floating Walnut Treads */}
+      {Array.from({ length: steps }).map((_, i) => {
+        const stepY = (i / steps) * totalHeight;
+        const stepZ = -(i / steps) * totalDepth;
+        return (
+          <mesh key={i} position={[0, stepY + 0.12, stepZ]} castShadow receiveShadow>
+            <boxGeometry args={[1.35, 0.06, 0.34]} />
+            <meshStandardMaterial
+              color={hovered ? "#92400e" : "#5a3418"}
+              roughness={0.4}
+              metalness={0.1}
             />
           </mesh>
-        </>
-      )}
+        );
+      })}
+
+      {/* Central Black Steel Spine / Stringer */}
+      <mesh
+        position={[0, totalHeight / 2, -totalDepth / 2]}
+        rotation={[Math.atan2(totalHeight, totalDepth), 0, 0]}
+        castShadow
+      >
+        <boxGeometry args={[0.2, 0.15, Math.hypot(totalHeight, totalDepth)]} />
+        <meshStandardMaterial color="#0f172a" metalness={0.8} roughness={0.3} />
+      </mesh>
+
+      {/* Glass Balustrade & Steel Handrail */}
+      <mesh
+        position={[0.68, totalHeight / 2 + 0.5, -totalDepth / 2]}
+        rotation={[Math.atan2(totalHeight, totalDepth), 0, 0]}
+      >
+        <planeGeometry args={[0.02, Math.hypot(totalHeight, totalDepth)]} />
+        <meshStandardMaterial color="#38bdf8" transparent opacity={0.25} roughness={0.1} />
+      </mesh>
+      {/* Handrail */}
+      <mesh
+        position={[0.68, totalHeight / 2 + 0.95, -totalDepth / 2]}
+        rotation={[Math.atan2(totalHeight, totalDepth), 0, 0]}
+        castShadow
+      >
+        <cylinderGeometry args={[0.025, 0.025, Math.hypot(totalHeight, totalDepth), 12]} />
+        <meshStandardMaterial color="#e2e8f0" metalness={0.9} roughness={0.2} />
+      </mesh>
+    </group>
+  );
+}
+
+// Mezzanine Glass Balustrade / Railing (Safe glass edge overlooking ground floor)
+export function MezzanineGlassRailing({
+  onInteract,
+}: PropInteractHandler) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <group
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        setHovered(true);
+        document.body.style.cursor = "pointer";
+      }}
+      onPointerOut={() => {
+        setHovered(false);
+        document.body.style.cursor = "auto";
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onInteract?.(
+          "Balkon Kaca Mezzanine",
+          "Pemandangan lantai 1 langsung dari lantai 2 untuk memantau aktivitas tim engineering.",
+          "🏢"
+        );
+      }}
+    >
+      {/* Front Edge Railing (from x = -8.5 to x = 0 at z = 1.0, leaving x = -11.0 to -8.5 open for staircase entry) */}
+      <group position={[-4.25, 3.6, 1.0]}>
+        {/* Tempered Glass Panel */}
+        <mesh position={[0, 0.45, 0]}>
+          <boxGeometry args={[8.5, 0.9, 0.03]} />
+          <meshStandardMaterial
+            color={hovered ? "#38bdf8" : "#94a3b8"}
+            transparent
+            opacity={0.25}
+            roughness={0.05}
+            metalness={0.2}
+          />
+        </mesh>
+        {/* Stainless Steel Handrail Cap */}
+        <mesh position={[0, 0.92, 0]} castShadow>
+          <boxGeometry args={[8.5, 0.05, 0.06]} />
+          <meshStandardMaterial color="#e2e8f0" metalness={0.9} roughness={0.2} />
+        </mesh>
+        {/* Vertical Steel Posts */}
+        {[-4.1, -2.1, -0.1, 1.9, 3.9].map((px, i) => (
+          <mesh key={i} position={[px, 0.45, 0]} castShadow>
+            <cylinderGeometry args={[0.02, 0.02, 0.9, 12]} />
+            <meshStandardMaterial color="#0f172a" metalness={0.8} />
+          </mesh>
+        ))}
+      </group>
+
+      {/* Stairwell Side Guardrail (from z = 1.0 to z = -0.6 along x = -8.5) */}
+      <group position={[-8.5, 3.6, 0.2]}>
+        <mesh position={[0, 0.45, 0]}>
+          <boxGeometry args={[0.03, 0.9, 1.6]} />
+          <meshStandardMaterial
+            color={hovered ? "#38bdf8" : "#94a3b8"}
+            transparent
+            opacity={0.25}
+            roughness={0.05}
+            metalness={0.2}
+          />
+        </mesh>
+        <mesh position={[0, 0.92, 0]} castShadow>
+          <boxGeometry args={[0.06, 0.05, 1.6]} />
+          <meshStandardMaterial color="#e2e8f0" metalness={0.9} roughness={0.2} />
+        </mesh>
+        {[-0.7, 0.0, 0.7].map((pz, i) => (
+          <mesh key={i} position={[0, 0.45, pz]} castShadow>
+            <cylinderGeometry args={[0.02, 0.02, 0.9, 12]} />
+            <meshStandardMaterial color="#0f172a" metalness={0.8} />
+          </mesh>
+        ))}
+      </group>
+
+      {/* Side Edge Railing (from z = 1.0 to z = -7.5 at x = 0, y = 3.6) */}
+      <group position={[0, 3.6, -3.25]}>
+        {/* Tempered Glass Panel */}
+        <mesh position={[0, 0.45, 0]}>
+          <boxGeometry args={[0.03, 0.9, 8.5]} />
+          <meshStandardMaterial
+            color={hovered ? "#38bdf8" : "#94a3b8"}
+            transparent
+            opacity={0.25}
+            roughness={0.05}
+            metalness={0.2}
+          />
+        </mesh>
+        {/* Stainless Steel Handrail Cap */}
+        <mesh position={[0, 0.92, 0]} castShadow>
+          <boxGeometry args={[0.06, 0.05, 8.5]} />
+          <meshStandardMaterial color="#e2e8f0" metalness={0.9} roughness={0.2} />
+        </mesh>
+        {/* Vertical Steel Posts */}
+        {[-3.8, -1.8, 0.2, 2.2, 4.0].map((pz, i) => (
+          <mesh key={i} position={[0, 0.45, pz]} castShadow>
+            <cylinderGeometry args={[0.02, 0.02, 0.9, 12]} />
+            <meshStandardMaterial color="#0f172a" metalness={0.8} />
+          </mesh>
+        ))}
+      </group>
+    </group>
+  );
+}
+
+// Conference & Sprint Review Meeting Table
+export function ConferenceMeetingTable({
+  position,
+  onInteract,
+}: {
+  position: [number, number, number];
+} & PropInteractHandler) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <group
+      position={position}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        setHovered(true);
+        document.body.style.cursor = "pointer";
+      }}
+      onPointerOut={() => {
+        setHovered(false);
+        document.body.style.cursor = "auto";
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onInteract?.(
+          "Meja Rapat Tim",
+          "Tempat seluruh tim berkumpul untuk sprint review, retrospektif, dan demo rilis.",
+          "📊"
+        );
+      }}
+    >
+      {/* Large Table Top (Solid Walnut Wood with Chamfered Edges) */}
+      <mesh position={[0, 0.72, 0]} castShadow receiveShadow>
+        <boxGeometry args={[3.4, 0.06, 1.4]} />
+        <meshStandardMaterial
+          color={hovered ? "#854d0e" : "#5a3418"}
+          roughness={0.3}
+          metalness={0.1}
+        />
+      </mesh>
+      {/* Modern Angled Metal Table Base */}
+      <mesh position={[-1.1, 0.35, 0]} castShadow>
+        <boxGeometry args={[0.08, 0.7, 1.0]} />
+        <meshStandardMaterial color="#09090b" metalness={0.8} roughness={0.3} />
+      </mesh>
+      <mesh position={[1.1, 0.35, 0]} castShadow>
+        <boxGeometry args={[0.08, 0.7, 1.0]} />
+        <meshStandardMaterial color="#09090b" metalness={0.8} roughness={0.3} />
+      </mesh>
+      {/* Center Cable Pass-through / Wireless Charger */}
+      <mesh position={[0, 0.752, 0]}>
+        <boxGeometry args={[0.8, 0.005, 0.15]} />
+        <meshStandardMaterial color="#1e293b" metalness={0.7} />
+      </mesh>
+
+      {/* Open Presentation Laptop on Table */}
+      <group position={[0, 0.755, 0]}>
+        <mesh castShadow>
+          <boxGeometry args={[0.32, 0.015, 0.22]} />
+          <meshStandardMaterial color="#cbd5e1" metalness={0.8} />
+        </mesh>
+        <mesh position={[0, 0.11, -0.1]} rotation={[-0.25, 0, 0]} castShadow>
+          <boxGeometry args={[0.32, 0.2, 0.012]} />
+          <meshStandardMaterial color="#0f172a" />
+        </mesh>
+        <mesh position={[0, 0.11, -0.092]} rotation={[-0.25, 0, 0]}>
+          <planeGeometry args={[0.29, 0.17]} />
+          <meshBasicMaterial color="#38bdf8" />
+        </mesh>
+      </group>
+
+      {/* Conference Chairs Around Table */}
+      {[-1.0, 0, 1.0].map((cx, i) => (
+        <group key={`front-${i}`} position={[cx, 0, 0.85]}>
+          <mesh position={[0, 0.42, 0]} castShadow>
+            <boxGeometry args={[0.42, 0.06, 0.4]} />
+            <meshStandardMaterial color="#1e293b" roughness={0.7} />
+          </mesh>
+          <mesh position={[0, 0.7, 0.18]} castShadow>
+            <boxGeometry args={[0.38, 0.45, 0.04]} />
+            <meshStandardMaterial color="#334155" roughness={0.6} />
+          </mesh>
+          <mesh position={[0, 0.2, 0]} castShadow>
+            <cylinderGeometry args={[0.025, 0.025, 0.4, 8]} />
+            <meshStandardMaterial color="#64748b" metalness={0.8} />
+          </mesh>
+        </group>
+      ))}
+      {[-1.0, 0, 1.0].map((cx, i) => (
+        <group key={`back-${i}`} position={[cx, 0, -0.85]} rotation={[0, Math.PI, 0]}>
+          <mesh position={[0, 0.42, 0]} castShadow>
+            <boxGeometry args={[0.42, 0.06, 0.4]} />
+            <meshStandardMaterial color="#1e293b" roughness={0.7} />
+          </mesh>
+          <mesh position={[0, 0.7, 0.18]} castShadow>
+            <boxGeometry args={[0.38, 0.45, 0.04]} />
+            <meshStandardMaterial color="#334155" roughness={0.6} />
+          </mesh>
+          <mesh position={[0, 0.2, 0]} castShadow>
+            <cylinderGeometry args={[0.025, 0.025, 0.4, 8]} />
+            <meshStandardMaterial color="#64748b" metalness={0.8} />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
+
+// HQ Main Entrance & Freelancer Door (Right Wall)
+export function EntranceDoor({
+  position,
+  onInteract,
+}: {
+  position: [number, number, number];
+} & PropInteractHandler) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <group
+      position={position}
+      rotation={[0, -Math.PI / 2, 0]}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        setHovered(true);
+        document.body.style.cursor = "pointer";
+      }}
+      onPointerOut={() => {
+        setHovered(false);
+        document.body.style.cursor = "auto";
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onInteract?.(
+          "Pintu Masuk Utama",
+          "Pintu akses utama kantor agensi tempat freelancer dan tamu masuk ke ruangan.",
+          "🚪"
+        );
+      }}
+    >
+      {/* Outer Door Frame */}
+      <mesh castShadow receiveShadow>
+        <boxGeometry args={[2.4, 3.2, 0.15]} />
+        <meshStandardMaterial color="#09090b" metalness={0.9} roughness={0.2} />
+      </mesh>
+
+      {/* Double Glass Doors */}
+      <mesh position={[-0.55, 0, 0.02]}>
+        <planeGeometry args={[1.05, 3.0]} />
+        <meshStandardMaterial
+          color={hovered ? "#38bdf8" : "#bae6fd"}
+          transparent
+          opacity={0.3}
+          roughness={0.1}
+          metalness={0.2}
+        />
+      </mesh>
+      <mesh position={[0.55, 0, 0.02]}>
+        <planeGeometry args={[1.05, 3.0]} />
+        <meshStandardMaterial
+          color={hovered ? "#38bdf8" : "#bae6fd"}
+          transparent
+          opacity={0.3}
+          roughness={0.1}
+          metalness={0.2}
+        />
+      </mesh>
+
+      {/* Stainless Steel Vertical Door Handles */}
+      <mesh position={[-0.08, 0, 0.08]} castShadow>
+        <cylinderGeometry args={[0.015, 0.015, 0.8, 12]} />
+        <meshStandardMaterial color="#e2e8f0" metalness={0.9} roughness={0.2} />
+      </mesh>
+      <mesh position={[0.08, 0, 0.08]} castShadow>
+        <cylinderGeometry args={[0.015, 0.015, 0.8, 12]} />
+        <meshStandardMaterial color="#e2e8f0" metalness={0.9} roughness={0.2} />
+      </mesh>
+
+      {/* Illuminated Header Sign */}
+      <mesh position={[0, 1.75, 0.1]}>
+        <boxGeometry args={[1.8, 0.35, 0.08]} />
+        <meshStandardMaterial
+          color="#064e3b"
+          emissive="#22c55e"
+          emissiveIntensity={hovered ? 0.9 : 0.5}
+        />
+      </mesh>
+    </group>
+  );
+}
+
+// Studio Espresso Machine Bar with Coffee Grinder & Steam Cups
+export function CoffeeEspressoBar({
+  position,
+  onInteract,
+}: {
+  position: [number, number, number];
+} & PropInteractHandler) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <group
+      position={position}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        setHovered(true);
+        document.body.style.cursor = "pointer";
+      }}
+      onPointerOut={() => {
+        setHovered(false);
+        document.body.style.cursor = "auto";
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onInteract?.(
+          "Bar Kopi Espresso",
+          "Freshly brewed double shot espresso untuk menjaga performa ngoding tetap maksimal!",
+          "☕"
+        );
+      }}
+    >
+      {/* Bar Counter Table */}
+      <mesh position={[0, 0.45, 0]} castShadow receiveShadow>
+        <boxGeometry args={[1.2, 0.9, 0.6]} />
+        <meshStandardMaterial color={hovered ? "#3f3f46" : "#27272a"} roughness={0.5} />
+      </mesh>
+      <mesh position={[0, 0.91, 0]} receiveShadow>
+        <boxGeometry args={[1.24, 0.04, 0.64]} />
+        <meshStandardMaterial color="#f8fafc" roughness={0.2} />
+      </mesh>
+
+      {/* Chrome Espresso Machine */}
+      <group position={[-0.25, 0.93, 0]}>
+        <mesh position={[0, 0.2, 0]} castShadow>
+          <boxGeometry args={[0.42, 0.4, 0.32]} />
+          <meshStandardMaterial color="#e2e8f0" metalness={0.9} roughness={0.15} />
+        </mesh>
+        {/* Portafilter Spout */}
+        <mesh position={[0, 0.12, 0.18]} castShadow>
+          <cylinderGeometry args={[0.04, 0.04, 0.08, 12]} />
+          <meshStandardMaterial color="#09090b" metalness={0.8} />
+        </mesh>
+        {/* Steam Wand */}
+        <mesh position={[0.18, 0.15, 0.16]} rotation={[0.3, 0, -0.3]} castShadow>
+          <cylinderGeometry args={[0.008, 0.008, 0.18, 8]} />
+          <meshStandardMaterial color="#e2e8f0" metalness={0.9} />
+        </mesh>
+        {/* Pressure Gauge */}
+        <mesh position={[-0.12, 0.28, 0.165]}>
+          <circleGeometry args={[0.035, 16]} />
+          <meshStandardMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={0.5} />
+        </mesh>
+      </group>
+
+      {/* Coffee Cups */}
+      <mesh position={[0.25, 0.98, 0.08]} castShadow>
+        <cylinderGeometry args={[0.045, 0.035, 0.09, 12]} />
+        <meshStandardMaterial color="#facc15" />
+      </mesh>
+      <mesh position={[0.38, 0.98, -0.06]} castShadow>
+        <cylinderGeometry args={[0.045, 0.035, 0.09, 12]} />
+        <meshStandardMaterial color="#38bdf8" />
+      </mesh>
     </group>
   );
 }

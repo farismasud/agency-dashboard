@@ -6,8 +6,12 @@ import { ROLE_LABEL, ROLE_RING_COLOR } from "./Office3D/layout";
 const MODEL_INFO: Record<string, { model: string; desc: string }> = {
   pm: { model: "Opus (Claude 3.5 / Gemini Pro)", desc: "Project Manager: Task breakdown & Roadmap scheduling" },
   analyst: { model: "Sonnet (Claude 3.5 / Gemini Flash)", desc: "Research & Codebase investigation" },
+  security: { model: "Sonnet (Claude 3.5 / Gemini Flash)", desc: "Security, Iron Rules & Migration Guard Auditor" },
+  designer: { model: "Sonnet (Claude 3.5 / Gemini Flash)", desc: "UI/UX, 3D Office Architect & Frontend Prototypes" },
   dev: { model: "Sonnet (Claude 3.5 / Gemini Flash)", desc: "Feature implementation & Code editing" },
   qa: { model: "Sonnet (Claude 3.5 / Gemini Flash)", desc: "Quality assurance, Diff audit & Automated testing" },
+  devops: { model: "Sonnet (Claude 3.5 / Gemini Flash)", desc: "DevOps & Cloud: Docker, K8s, Cloudflare Tunnel" },
+  dba: { model: "Sonnet (Claude 3.5 / Gemini Flash)", desc: "PostgreSQL Database Administrator & Performance Tuning" },
 };
 
 export function AgentDossierModal({

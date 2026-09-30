@@ -20,6 +20,7 @@ const Office = dynamic(() => import("@/components/Office").then((mod) => mod.Off
 });
 
 const DEFAULT_AGENTS: Record<string, AgentState> = {
+  // --- Floor 2 (Mezzanine: Strategy, Architecture, UI/UX & Security) ---
   pm: {
     subagent_type: "pm",
     display_name: "Zaki",
@@ -27,6 +28,28 @@ const DEFAULT_AGENTS: Record<string, AgentState> = {
     last_action: "Mengkoordinasi roadmap tim...",
     last_event_at: new Date().toISOString(),
   },
+  analyst: {
+    subagent_type: "analyst",
+    display_name: "Lulu",
+    status: "idle",
+    last_action: "Auditing database & schema 📊",
+    last_event_at: new Date().toISOString(),
+  },
+  security: {
+    subagent_type: "security",
+    display_name: "Bagas",
+    status: "working",
+    last_action: "Verifying Iron Rules & Guard Checks 🛡️",
+    last_event_at: new Date().toISOString(),
+  },
+  designer: {
+    subagent_type: "designer",
+    display_name: "Alya",
+    status: "working",
+    last_action: "Designing 3D Office & UI Prototypes 🎨",
+    last_event_at: new Date().toISOString(),
+  },
+  // --- Floor 1 (Engineering, Infrastructure & Data Systems) ---
   dev: {
     subagent_type: "dev",
     display_name: "Pingot",
@@ -41,11 +64,18 @@ const DEFAULT_AGENTS: Record<string, AgentState> = {
     last_action: "Verifying test suite & diff 🧪",
     last_event_at: new Date().toISOString(),
   },
-  analyst: {
-    subagent_type: "analyst",
-    display_name: "Lulu",
-    status: "idle",
-    last_action: "Auditing database & schema 📊",
+  devops: {
+    subagent_type: "devops",
+    display_name: "Bimo",
+    status: "working",
+    last_action: "Managing Docker containers & Cloudflare 🐳",
+    last_event_at: new Date().toISOString(),
+  },
+  dba: {
+    subagent_type: "dba",
+    display_name: "Deni",
+    status: "working",
+    last_action: "Optimizing PostgreSQL indexes & WAL 🗄️",
     last_event_at: new Date().toISOString(),
   },
 };
@@ -54,6 +84,7 @@ export default function KerjaPage() {
   const [project, setProject] = useState<string | null>(null);
   const [showFeed, setShowFeed] = useState(true);
   const [showRoadmap, setShowRoadmap] = useState(true);
+  const [timeOfDay, setTimeOfDay] = useState<"day" | "night">("day");
   const [selectedAgent, setSelectedAgent] = useState<AgentState | null>(null);
   const [feedFilter, setFeedFilter] = useState<string | null>(null);
   const [propNotice, setPropNotice] = useState<{
@@ -63,6 +94,17 @@ export default function KerjaPage() {
   } | null>(null);
 
   const room = useAgencySocket(project);
+
+  // Check URL query param for initial time of day (e.g. ?time=night)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const time = params.get("time");
+      if (time === "night" || time === "day") {
+        setTimeOfDay(time);
+      }
+    }
+  }, []);
 
   // Auto-hide prop notification after 4.5 seconds
   useEffect(() => {
@@ -92,13 +134,29 @@ export default function KerjaPage() {
                 LIVE
               </span>
             </div>
-            <p className="text-[10px] text-zinc-400 font-mono">Multi-Agent Isometric Studio</p>
+            <p className="text-[10px] text-zinc-400 font-mono">Multi-Agent 2-Floor Isometric Office</p>
           </div>
         </div>
 
         {/* Center/Right Controls */}
         <div className="flex items-center gap-3">
           <RoomSelector selected={project} onSelect={setProject} />
+
+          {/* Day / Night Ambience Toggle */}
+          <button
+            onClick={() => setTimeOfDay((prev) => (prev === "day" ? "night" : "day"))}
+            className={`px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-2 transition-all shadow-sm ${
+              timeOfDay === "day"
+                ? "bg-amber-500/10 border-amber-500/40 text-amber-300 hover:bg-amber-500/20 shadow-amber-950/30"
+                : "bg-indigo-950/80 border-indigo-700/60 text-indigo-300 hover:bg-indigo-900/60 shadow-indigo-950/50"
+            }`}
+            title={`Ganti ke waktu ${timeOfDay === "day" ? "Malam" : "Siang"}`}
+          >
+            <span>{timeOfDay === "day" ? "☀️" : "🌙"}</span>
+            <span className="hidden sm:inline font-mono uppercase tracking-wider text-[11px]">
+              {timeOfDay === "day" ? "Siang" : "Malam"}
+            </span>
+          </button>
 
           {/* Toggle Panels Buttons */}
           <div className="flex items-center rounded-lg bg-zinc-900 border border-zinc-800 p-0.5 text-xs">
@@ -136,6 +194,7 @@ export default function KerjaPage() {
         <div className="absolute inset-0 z-0">
           <Office
             agents={activeAgents}
+            timeOfDay={timeOfDay}
             onSelectAgent={(agent) => setSelectedAgent(agent)}
             onInteractProp={(title, message, icon) => setPropNotice({ title, message, icon })}
           />

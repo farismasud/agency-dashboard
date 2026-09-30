@@ -32,6 +32,18 @@ export function getScreenTexture(role: string): THREE.CanvasTexture {
     case "analyst":
       drawDatabaseAnalytics(ctx);
       break;
+    case "devops":
+      drawDevOpsDashboard(ctx);
+      break;
+    case "dba":
+      drawPostgresEditor(ctx);
+      break;
+    case "security":
+      drawSecurityGuard(ctx);
+      break;
+    case "designer":
+      drawFigmaCanvas(ctx);
+      break;
     default:
       drawVSCode(ctx);
   }
@@ -43,275 +55,387 @@ export function getScreenTexture(role: string): THREE.CanvasTexture {
   return texture;
 }
 
-// --- 1. DEV: VS CODE DARK THEME ---
-function drawVSCode(ctx: CanvasRenderingContext2D) {
-  // Background
-  ctx.fillStyle = "#1e1e1e";
-  ctx.fillRect(0, 0, 512, 300);
-
-  // Top Window Bar
-  ctx.fillStyle = "#323233";
+// Helper for window controls
+function drawWindowHeader(ctx: CanvasRenderingContext2D, title: string, bg = "#1e1e2e") {
+  ctx.fillStyle = bg;
   ctx.fillRect(0, 0, 512, 24);
-  // Mac Window Dots
+
+  // Window dots
   ctx.fillStyle = "#ff5f56";
   ctx.beginPath();
   ctx.arc(14, 12, 5, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = "#ffbd2e";
   ctx.beginPath();
-  ctx.arc(30, 12, 5, 0, Math.PI * 2);
+  ctx.arc(28, 12, 5, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = "#27c93f";
   ctx.beginPath();
-  ctx.arc(46, 12, 5, 0, Math.PI * 2);
+  ctx.arc(42, 12, 5, 0, Math.PI * 2);
   ctx.fill();
 
-  // Tab
-  ctx.fillStyle = "#1e1e1e";
-  ctx.fillRect(70, 4, 140, 20);
-  ctx.fillStyle = "#e2e8f0";
-  ctx.font = "11px monospace";
-  ctx.fillText("account_move.py", 85, 18);
-
-  // Left Sidebar (File Explorer)
-  ctx.fillStyle = "#252526";
-  ctx.fillRect(0, 24, 110, 256);
+  // Title
   ctx.fillStyle = "#94a3b8";
-  ctx.font = "10px sans-serif";
-  ctx.fillText("EXPLORER", 10, 42);
-  ctx.fillStyle = "#38bdf8";
-  ctx.fillText("▼ models", 14, 60);
-  ctx.fillStyle = "#cbd5e1";
-  ctx.fillText("  • account_move.py", 18, 76);
-  ctx.fillText("  • partner.py", 18, 92);
-  ctx.fillText("  • partial_rec.py", 18, 108);
-  ctx.fillStyle = "#94a3b8";
-  ctx.fillText("▶ controllers", 14, 126);
-  ctx.fillText("▶ tests", 14, 142);
-
-  // Editor Area with Code
-  ctx.fillStyle = "#1e1e1e";
-  ctx.fillRect(110, 24, 402, 256);
-
-  // Line Numbers
-  ctx.fillStyle = "#858585";
-  ctx.font = "11px monospace";
-  for (let i = 1; i <= 12; i++) {
-    ctx.fillText(`${i}`, 118, 38 + i * 18);
-  }
-
-  // Code Lines (Syntax Highlighting)
-  const codeLines = [
-    { text: "from odoo import models, fields, api", color: "#c586c0" },
-    { text: "", color: "" },
-    { text: "class AccountMove(models.Model):", color: "#4ec9b0" },
-    { text: "    _inherit = 'account.move'", color: "#9cdcfe" },
-    { text: "", color: "" },
-    { text: "    @api.multi", color: "#dcdcaa" },
-    { text: "    def action_post(self):", color: "#dcdcaa" },
-    { text: "        # Verify baseline unbalance guard", color: "#6a9955" },
-    { text: "        self.guard_balance_check()", color: "#dcdcaa" },
-    { text: "        res = super().action_post()", color: "#9cdcfe" },
-    { text: "        return res", color: "#c586c0" },
-  ];
-
-  codeLines.forEach((line, idx) => {
-    if (!line.text) return;
-    ctx.fillStyle = line.color;
-    ctx.font = "11px monospace";
-    ctx.fillText(line.text, 142, 38 + (idx + 1) * 18);
-  });
-
-  // Bottom Status Bar
-  ctx.fillStyle = "#007acc";
-  ctx.fillRect(0, 280, 512, 20);
-  ctx.fillStyle = "#ffffff";
   ctx.font = "10px monospace";
-  ctx.fillText("⎇ main*  •  Python 3.11  •  UTF-8  •  Spaces: 4", 10, 294);
+  ctx.fillText(title, 200, 16);
 }
 
-// --- 2. QA: GITHUB PR & AUTOMATED TEST RUNNER ---
+// 1. DEV: VS Code Dark Theme
+function drawVSCode(ctx: CanvasRenderingContext2D) {
+  ctx.fillStyle = "#1e1e1e";
+  ctx.fillRect(0, 0, 512, 300);
+  drawWindowHeader(ctx, "app.ts - VS Code", "#252526");
+
+  // Sidebar
+  ctx.fillStyle = "#333333";
+  ctx.fillRect(0, 24, 38, 276);
+  ctx.fillStyle = "#252526";
+  ctx.fillRect(38, 24, 85, 276);
+
+  ctx.fillStyle = "#9cdcfe";
+  ctx.font = "9px monospace";
+  ctx.fillText("EXPLORER", 44, 40);
+  ctx.fillStyle = "#cccccc";
+  ctx.fillText("📄 main.go", 48, 58);
+  ctx.fillText("📄 route.ts", 48, 74);
+  ctx.fillText("📄 schema.sql", 48, 90);
+
+  // Editor Lines
+  const lines = [
+    { text: "import { AgencyCore } from '@agency/core';", col: "#c586c0" },
+    { text: "export async function syncLedger() {", col: "#569cd6" },
+    { text: "  const balance = await getGuardCheck();", col: "#dcdcaa" },
+    { text: "  if (balance !== 11) throw new Error();", col: "#ce9178" },
+    { text: "  return reconcileNativeLines({ diff: 0 });", col: "#4ec9b0" },
+    { text: "}", col: "#d4d4d4" },
+  ];
+
+  ctx.font = "11px monospace";
+  lines.forEach((l, idx) => {
+    ctx.fillStyle = "#5a5a5a";
+    ctx.fillText(String(idx + 1).padStart(2, " "), 135, 52 + idx * 22);
+    ctx.fillStyle = l.col;
+    ctx.fillText(l.text, 160, 52 + idx * 22);
+  });
+
+  // Terminal Bottom
+  ctx.fillStyle = "#181818";
+  ctx.fillRect(123, 200, 389, 100);
+  ctx.fillStyle = "#4ade80";
+  ctx.font = "10px monospace";
+  ctx.fillText("✓ [TEST] All 48 unit tests PASSED (0.42s)", 135, 225);
+  ctx.fillStyle = "#38bdf8";
+  ctx.fillText("⚡ [BUILD] Turbopack compiled in 142ms", 135, 245);
+}
+
+// 2. QA: GitHub PR & Pytest Runner
 function drawGitHubAndTerminal(ctx: CanvasRenderingContext2D) {
-  // Background
   ctx.fillStyle = "#0d1117";
   ctx.fillRect(0, 0, 512, 300);
+  drawWindowHeader(ctx, "PR #108: Fix Zero-Diff Guard", "#161b22");
 
-  // Top GitHub PR Bar
-  ctx.fillStyle = "#161b22";
-  ctx.fillRect(0, 0, 512, 42);
+  // PR Header
   ctx.fillStyle = "#238636";
   ctx.beginPath();
-  ctx.roundRect(12, 10, 56, 22, 4);
+  ctx.roundRect(16, 36, 90, 22, 4);
   ctx.fill();
   ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 11px sans-serif";
-  ctx.fillText("✔ Open", 20, 25);
+  ctx.font = "bold 10px sans-serif";
+  ctx.fillText("✔ Open PR #108", 22, 51);
 
-  ctx.fillStyle = "#f0f6fc";
-  ctx.font = "bold 13px sans-serif";
-  ctx.fillText("PR #108: Fix partial reconcile precision & tally", 78, 25);
+  ctx.fillStyle = "#e6edf3";
+  ctx.font = "bold 12px sans-serif";
+  ctx.fillText("reconcile: tally 100% 5 Trade COA and guard = 11", 115, 52);
 
-  // Checks passed banner
-  ctx.fillStyle = "#1f2937";
-  ctx.fillRect(12, 50, 488, 30);
-  ctx.fillStyle = "#3fb950";
-  ctx.font = "bold 11px monospace";
-  ctx.fillText("✔ All checks have passed (18 successful checks)", 24, 70);
-
-  // Terminal Runner Section Below
-  ctx.fillStyle = "#05080d";
-  ctx.fillRect(12, 88, 488, 200);
-
-  ctx.fillStyle = "#8b949e";
-  ctx.font = "11px monospace";
-  ctx.fillText("$ pytest tests/test_migration_integrity.py -v", 24, 110);
-
-  const testResults = [
-    { name: "test_gl_vs_aging_5_trade_accounts ...", status: "PASSED", color: "#3fb950" },
-    { name: "test_unbalance_baseline_equals_11 ...", status: "PASSED", color: "#3fb950" },
-    { name: "test_recompute_residual_line_id ...", status: "PASSED", color: "#3fb950" },
-    { name: "test_playwright_e2e_invoice_flow ...", status: "PASSED", color: "#3fb950" },
-    { name: "test_zero_gap_partner_allocations ...", status: "PASSED", color: "#3fb950" },
+  // Check List
+  const checks = [
+    { ok: true, name: "balance-guard-check (baseline 11)" },
+    { ok: true, name: "bs-2021-verification (100% tally)" },
+    { ok: true, name: "no-artificial-write-offs rule" },
+    { ok: true, name: "playwright e2e regression suite" },
   ];
 
-  testResults.forEach((t, i) => {
-    ctx.fillStyle = "#c9d1d9";
-    ctx.fillText(t.name, 24, 134 + i * 22);
-    ctx.fillStyle = t.color;
-    ctx.font = "bold 11px monospace";
-    ctx.fillText(`[${t.status}]`, 420, 134 + i * 22);
+  checks.forEach((c, idx) => {
+    ctx.fillStyle = "#238636";
+    ctx.font = "bold 12px monospace";
+    ctx.fillText("✓", 25, 95 + idx * 24);
+    ctx.fillStyle = "#e6edf3";
+    ctx.font = "11px monospace";
+    ctx.fillText(c.name, 45, 95 + idx * 24);
   });
 
-  ctx.fillStyle = "#3fb950";
+  // Test Run Result Bar
+  ctx.fillStyle = "#161b22";
+  ctx.fillRect(16, 205, 480, 80);
+  ctx.fillStyle = "#22c55e";
   ctx.font = "bold 12px monospace";
-  ctx.fillText("================ 18 passed in 1.48s ================", 90, 265);
+  ctx.fillText("TEST SUITE: 100% PASSED", 30, 235);
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "10px monospace";
+  ctx.fillText("Coverage: 98.4% | Memory: 112MB | Duration: 2.1s", 30, 255);
 }
 
-// --- 3. PM: KANBAN SPRINT DASHBOARD ---
+// 3. PM: Kanban Sprint Board
 function drawKanbanBoard(ctx: CanvasRenderingContext2D) {
-  // Background
-  ctx.fillStyle = "#090d16";
+  ctx.fillStyle = "#0f172a";
   ctx.fillRect(0, 0, 512, 300);
+  drawWindowHeader(ctx, "Sprint 42: Odoo Revamp Roadmap", "#1e293b");
 
-  // Header
-  ctx.fillStyle = "#111827";
-  ctx.fillRect(0, 0, 512, 36);
-  ctx.fillStyle = "#a855f7";
-  ctx.font = "bold 14px sans-serif";
-  ctx.fillText("📋 Agency Sprint Board · Q4 Migration", 14, 23);
-
-  ctx.fillStyle = "#10b981";
-  ctx.font = "bold 11px sans-serif";
-  ctx.fillText("88% Completed", 410, 23);
-
-  // 3 Columns: Backlog, In Progress, Done
   const cols = [
-    { title: "TO DO (3)", x: 12, color: "#38bdf8" },
-    { title: "IN PROGRESS (2)", x: 178, color: "#facc15" },
-    { title: "DONE (8)", x: 344, color: "#4ade80" },
+    { title: "TODO", color: "#64748b" },
+    { title: "IN PROGRESS", color: "#38bdf8" },
+    { title: "REVIEW", color: "#facc15" },
+    { title: "DONE (100%)", color: "#4ade80" },
   ];
 
-  cols.forEach((col) => {
-    // Col Header
-    ctx.fillStyle = "#1e293b";
-    ctx.fillRect(col.x, 44, 156, 26);
-    ctx.fillStyle = col.color;
-    ctx.font = "bold 11px sans-serif";
-    ctx.fillText(col.title, col.x + 8, 61);
-
-    // Col Background
-    ctx.fillStyle = "#0f172a";
-    ctx.fillRect(col.x, 74, 156, 216);
-  });
-
-  // Sample Cards
-  const cards = [
-    { col: 0, y: 82, title: "Deploy to Prod", tag: "Ops", tagColor: "#38bdf8" },
-    { col: 0, y: 136, title: "Doc Handover", tag: "Docs", tagColor: "#94a3b8" },
-    { col: 1, y: 82, title: "Playwright E2E", tag: "QA", tagColor: "#f59e0b" },
-    { col: 1, y: 136, title: "Refactor APR", tag: "Dev", tagColor: "#10b981" },
-    { col: 2, y: 82, title: "Zero-Diff Tally", tag: "Done", tagColor: "#10b981" },
-    { col: 2, y: 136, title: "Restore Kas 1010", tag: "Done", tagColor: "#10b981" },
-    { col: 2, y: 190, title: "BS 2021 Alignment", tag: "Done", tagColor: "#10b981" },
-  ];
-
-  cards.forEach((c) => {
-    const x = cols[c.col].x + 6;
+  cols.forEach((col, idx) => {
+    const cx = 14 + idx * 122;
     ctx.fillStyle = "#1e293b";
     ctx.beginPath();
-    ctx.roundRect(x, c.y, 144, 46, 6);
+    ctx.roundRect(cx, 36, 114, 250, 6);
+    ctx.fill();
+
+    ctx.fillStyle = col.color;
+    ctx.font = "bold 10px sans-serif";
+    ctx.fillText(col.title, cx + 8, 52);
+
+    // Cards
+    for (let c = 0; c < 2; c++) {
+      ctx.fillStyle = "#334155";
+      ctx.beginPath();
+      ctx.roundRect(cx + 6, 62 + c * 52, 102, 44, 4);
+      ctx.fill();
+
+      ctx.fillStyle = "#f8fafc";
+      ctx.font = "9px sans-serif";
+      ctx.fillText(`Task #${idx * 2 + c + 1}`, cx + 12, 78 + c * 52);
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "8px monospace";
+      ctx.fillText("Priority: High", cx + 12, 94 + c * 52);
+    }
+  });
+}
+
+// 4. ANALYST: PostgreSQL Data Analytics
+function drawDatabaseAnalytics(ctx: CanvasRenderingContext2D) {
+  ctx.fillStyle = "#090d16";
+  ctx.fillRect(0, 0, 512, 300);
+  drawWindowHeader(ctx, "PostgreSQL: odoo19_db Ledger Audit", "#111827");
+
+  // Chart area
+  ctx.fillStyle = "#1e293b";
+  ctx.fillRect(20, 40, 230, 110);
+  ctx.fillStyle = "#38bdf8";
+  ctx.font = "bold 10px monospace";
+  ctx.fillText("LEDGER BALANCE AUDIT (2021-2026)", 30, 58);
+
+  // Bar chart
+  const heights = [35, 60, 48, 75, 52, 68];
+  heights.forEach((h, i) => {
+    ctx.fillStyle = i === 3 ? "#10b981" : "#0284c7";
+    ctx.fillRect(35 + i * 32, 140 - h, 20, h);
+  });
+
+  // Query Result Table
+  ctx.fillStyle = "#1e293b";
+  ctx.fillRect(265, 40, 230, 110);
+  ctx.fillStyle = "#facc15";
+  ctx.font = "bold 9px monospace";
+  ctx.fillText("ACCOUNT_PARTIAL_RECONCILE", 275, 58);
+
+  ctx.fillStyle = "#e2e8f0";
+  ctx.font = "8px monospace";
+  ctx.fillText("ID    DEBIT_MOVE   CREDIT_MOVE  AMOUNT", 275, 78);
+  ctx.fillText("31615 125270       18331        Rp 133,2M", 275, 96);
+  ctx.fillText("47078 140352       31985        Rp 27.468", 275, 114);
+  ctx.fillText("55303 263295       86099        $135.585", 275, 132);
+
+  // Bottom Status
+  ctx.fillStyle = "#064e3b";
+  ctx.fillRect(20, 165, 475, 115);
+  ctx.fillStyle = "#34d399";
+  ctx.font = "bold 11px monospace";
+  ctx.fillText("✔ AUDIT RESULT: ZERO-GAP CONFIRMED (DIFF = 0.00)", 35, 200);
+  ctx.fillStyle = "#a7f3d0";
+  ctx.font = "10px monospace";
+  ctx.fillText("Balance Guard = 11 | BS 2021 Matched: 100% | 5 Trade COA OK", 35, 225);
+}
+
+// 5. DEVOPS: Docker Desktop & K8s Pod Monitor
+function drawDevOpsDashboard(ctx: CanvasRenderingContext2D) {
+  ctx.fillStyle = "#0f172a";
+  ctx.fillRect(0, 0, 512, 300);
+  drawWindowHeader(ctx, "Docker & Kubernetes Cluster - Production", "#1e293b");
+
+  // Containers List
+  const containers = [
+    { name: "odoo19-production", cpu: "2.4%", mem: "1.2GB", status: "RUNNING" },
+    { name: "postgres-timescale", cpu: "1.1%", mem: "4.8GB", status: "RUNNING" },
+    { name: "redis-cache-cluster", cpu: "0.2%", mem: "256MB", status: "RUNNING" },
+    { name: "traefik-ssl-gateway", cpu: "0.4%", mem: "180MB", status: "RUNNING" },
+  ];
+
+  ctx.fillStyle = "#0284c7";
+  ctx.font = "bold 11px monospace";
+  ctx.fillText("CONTAINER STACK (DOCKER COMPOSE)", 20, 52);
+
+  containers.forEach((c, idx) => {
+    const y = 70 + idx * 42;
+    ctx.fillStyle = "#1e293b";
+    ctx.beginPath();
+    ctx.roundRect(20, y, 472, 34, 4);
+    ctx.fill();
+
+    ctx.fillStyle = "#22c55e";
+    ctx.beginPath();
+    ctx.arc(36, y + 17, 5, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = "#f8fafc";
-    ctx.font = "11px sans-serif";
-    ctx.fillText(c.title, x + 8, c.y + 18);
+    ctx.font = "bold 11px monospace";
+    ctx.fillText(c.name, 52, y + 21);
 
-    ctx.fillStyle = c.tagColor;
-    ctx.font = "bold 9px monospace";
-    ctx.fillText(`[${c.tag}]`, x + 8, c.y + 36);
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "10px monospace";
+    ctx.fillText(`CPU: ${c.cpu}  |  RAM: ${c.mem}`, 260, y + 21);
+
+    ctx.fillStyle = "#38bdf8";
+    ctx.fillText(c.status, 410, y + 21);
   });
+
+  // Cluster Health Footer
+  ctx.fillStyle = "#064e3b";
+  ctx.fillRect(20, 248, 472, 40);
+  ctx.fillStyle = "#4ade80";
+  ctx.font = "bold 10px monospace";
+  ctx.fillText("CLUSTER STATUS: HEALTHY  •  UPTIME: 42 DAYS  •  SSL: VALID", 35, 272);
 }
 
-// --- 4. ANALYST: DATABASE & DATA CHARTS ---
-function drawDatabaseAnalytics(ctx: CanvasRenderingContext2D) {
-  // Background
-  ctx.fillStyle = "#0a0f1d";
+// 6. DBA: PostgreSQL Query Editor
+function drawPostgresEditor(ctx: CanvasRenderingContext2D) {
+  ctx.fillStyle = "#0b1120";
   ctx.fillRect(0, 0, 512, 300);
+  drawWindowHeader(ctx, "pgAdmin 4 - PostgreSQL 16 @ localhost:5432", "#1e293b");
 
-  // Top Nav
-  ctx.fillStyle = "#131b2e";
-  ctx.fillRect(0, 0, 512, 32);
-  ctx.fillStyle = "#38bdf8";
-  ctx.font = "bold 13px sans-serif";
-  ctx.fillText("🗄️ PostgreSQL Analytics · odoo11ict", 14, 21);
-
-  // Left SQL Query Box
-  ctx.fillStyle = "#050811";
-  ctx.fillRect(12, 40, 488, 64);
-  ctx.fillStyle = "#a5b4fc";
-  ctx.font = "11px monospace";
-  ctx.fillText("SELECT account_code, SUM(debit) as deb, SUM(credit) as cred", 20, 58);
-  ctx.fillText("FROM account_move_line WHERE date < '2021-01-01'", 20, 76);
-  ctx.fillStyle = "#34d399";
-  ctx.fillText("GROUP BY account_code HAVING SUM(debit - credit) != 0; -- Net 0 OK", 20, 94);
-
-  // Data Table Grid
+  // Query editor
   ctx.fillStyle = "#1e293b";
-  ctx.fillRect(12, 114, 488, 22);
-  ctx.fillStyle = "#94a3b8";
-  ctx.font = "bold 10px monospace";
-  ctx.fillText("ACCOUNT         DEBIT (IDR)        CREDIT (IDR)      DIFF", 24, 129);
+  ctx.fillRect(16, 36, 480, 80);
+  ctx.fillStyle = "#facc15";
+  ctx.font = "10px monospace";
+  ctx.fillText("SELECT move_id, SUM(debit - credit) as balance", 28, 56);
+  ctx.fillText("FROM account_move_line WHERE account_id = '1050000.01'", 28, 74);
+  ctx.fillText("GROUP BY move_id HAVING SUM(debit - credit) != 0 LIMIT 10;", 28, 92);
 
-  const rows = [
-    { acc: "1050000.01", deb: "42,891,200.00", cred: "42,891,200.00", diff: "0.00 (Tally)" },
-    { acc: "2010000.01", deb: "18,440,150.00", cred: "18,440,150.00", diff: "0.00 (Tally)" },
-    { acc: "1010000.04", deb: "0.00", cred: "0.00", diff: "0.00 (Clean)" },
+  // Result Grid
+  ctx.fillStyle = "#0f172a";
+  ctx.fillRect(16, 126, 480, 160);
+
+  ctx.fillStyle = "#38bdf8";
+  ctx.font = "bold 10px monospace";
+  ctx.fillText("QUERY RESULT: 0 rows returned in 12.4ms (Tally Clean!)", 28, 146);
+
+  ctx.fillStyle = "#475569";
+  ctx.fillRect(28, 158, 456, 1);
+
+  ctx.fillStyle = "#22c55e";
+  ctx.font = "bold 12px monospace";
+  ctx.fillText("✔ ZERO UNBALANCED MOVEMENTS DETECTED", 28, 190);
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "10px monospace";
+  ctx.fillText("Active connections: 14/100 | Cache hit ratio: 99.8%", 28, 215);
+  ctx.fillText("Auto-vacuum: idle | Replica lag: 0.0s", 28, 235);
+}
+
+// 7. SECURITY: Security Scanner & Balance Guard
+function drawSecurityGuard(ctx: CanvasRenderingContext2D) {
+  ctx.fillStyle = "#180608";
+  ctx.fillRect(0, 0, 512, 300);
+  drawWindowHeader(ctx, "Security Guard & Integrity Auditor", "#450a0a");
+
+  // Shield Icon & Status
+  ctx.fillStyle = "#ef4444";
+  ctx.font = "bold 14px sans-serif";
+  ctx.fillText("🛡️ BALANCE GUARD INTEGRITY AUDIT", 24, 55);
+
+  const audits = [
+    { title: "Baseline Unbalance Guard", val: "11 (LOCKED & SAFE)", ok: true },
+    { title: "Pre-2021 Cutoff Rule", val: "STRICT COMPLIANT", ok: true },
+    { title: "Zero Artificial Write-offs", val: "VERIFIED ZERO DUMMY", ok: true },
+    { title: "Credentials / Token Leak Scan", val: "NO LEAKS DETECTED", ok: true },
   ];
 
-  rows.forEach((r, idx) => {
-    ctx.fillStyle = idx % 2 === 0 ? "#0f172a" : "#131d35";
-    ctx.fillRect(12, 138 + idx * 24, 488, 22);
-    ctx.fillStyle = "#e2e8f0";
-    ctx.font = "11px monospace";
-    ctx.fillText(`${r.acc}     ${r.deb}     ${r.cred}`, 24, 153 + idx * 24);
-    ctx.fillStyle = "#10b981";
+  audits.forEach((a, i) => {
+    const y = 72 + i * 40;
+    ctx.fillStyle = "#2d0e12";
+    ctx.beginPath();
+    ctx.roundRect(24, y, 464, 32, 4);
+    ctx.fill();
+
+    ctx.fillStyle = a.ok ? "#22c55e" : "#ef4444";
     ctx.font = "bold 11px monospace";
-    ctx.fillText(r.diff, 385, 153 + idx * 24);
+    ctx.fillText("✔ " + a.title, 38, y + 20);
+
+    ctx.fillStyle = "#fecaca";
+    ctx.fillText(a.val, 310, y + 20);
   });
 
-  // Chart Bars at bottom
-  ctx.fillStyle = "#1e293b";
-  ctx.fillRect(12, 220, 488, 70);
-  ctx.fillStyle = "#94a3b8";
-  ctx.font = "10px sans-serif";
-  ctx.fillText("Cumulative Reconciliation Progress:", 20, 234);
-
-  // Bar
-  ctx.fillStyle = "#0284c7";
-  ctx.fillRect(20, 246, 450, 18);
-  ctx.fillStyle = "#10b981";
-  ctx.fillRect(20, 246, 450 * 0.98, 18);
+  ctx.fillStyle = "#15803d";
+  ctx.fillRect(24, 240, 464, 45);
   ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 10px sans-serif";
-  ctx.fillText("99.999% Reconciled", 200, 259);
+  ctx.font = "bold 11px monospace";
+  ctx.fillText("SECURITY SHIELD STATUS: ALL 4 IRON RULES ENFORCED", 40, 267);
+}
+
+// 8. DESIGNER: Figma UI & Design System Canvas
+function drawFigmaCanvas(ctx: CanvasRenderingContext2D) {
+  ctx.fillStyle = "#1e1e1e";
+  ctx.fillRect(0, 0, 512, 300);
+  drawWindowHeader(ctx, "Figma - Agency UI Design System v2", "#2c2c2c");
+
+  // Canvas Toolbar
+  ctx.fillStyle = "#2c2c2c";
+  ctx.fillRect(0, 24, 40, 276);
+  ctx.fillStyle = "#a855f7";
+  ctx.fillText("❖", 14, 50);
+
+  // Artboards
+  const boards = [
+    { name: "3D Command Center", x: 60, y: 45, w: 125, h: 80, col: "#0f172a" },
+    { name: "Agent Dossier Modal", x: 200, y: 45, w: 125, h: 80, col: "#1e1b4b" },
+    { name: "Color Palette", x: 340, y: 45, w: 125, h: 80, col: "#18181b" },
+  ];
+
+  boards.forEach((b) => {
+    ctx.fillStyle = b.col;
+    ctx.beginPath();
+    ctx.roundRect(b.x, b.y, b.w, b.h, 4);
+    ctx.fill();
+
+    ctx.strokeStyle = "#38bdf8";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(b.x, b.y, b.w, b.h);
+
+    ctx.fillStyle = "#e2e8f0";
+    ctx.font = "8px sans-serif";
+    ctx.fillText(b.name, b.x + 8, b.y + 16);
+  });
+
+  // Color Swatches
+  const colors = ["#7c3aed", "#10b981", "#ea580c", "#0ea5e9", "#0d9488", "#2563eb", "#dc2626", "#a855f7"];
+  colors.forEach((c, idx) => {
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.arc(75 + idx * 46, 165, 14, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // Bottom status
+  ctx.fillStyle = "#3b0764";
+  ctx.fillRect(50, 210, 430, 75);
+  ctx.fillStyle = "#e9d5ff";
+  ctx.font = "bold 11px sans-serif";
+  ctx.fillText("Design Tokens & Isometric Component Library", 65, 235);
+  ctx.fillStyle = "#c084fc";
+  ctx.font = "10px sans-serif";
+  ctx.fillText("Typography: JetBrains Mono & Inter  •  Auto-Layout: Enabled", 65, 258);
 }

@@ -5,7 +5,7 @@ import * as THREE from "three";
 import type { AgentState } from "@/lib/types";
 import type { LiveAgentStatus } from "./CharacterModel";
 
-const LABEL_HEIGHT_Y = 1.35;
+const LABEL_HEIGHT_Y = 1.95;
 
 export function CameraProjector({
   agents,
@@ -29,9 +29,10 @@ export function CameraProjector({
 
       const live = livePositionsRef.current[agent.subagent_type];
       const posX = live ? live.x : 0;
+      const posY = (live && live.y !== undefined ? live.y : 0) + LABEL_HEIGHT_Y;
       const posZ = live ? live.z : 0;
 
-      v.set(posX, LABEL_HEIGHT_Y, posZ);
+      v.set(posX, posY, posZ);
       v.project(camera);
 
       // Hide if behind camera
