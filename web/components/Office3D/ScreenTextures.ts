@@ -12,47 +12,58 @@ export function getScreenTexture(role: string): THREE.CanvasTexture {
   canvas.width = 512;
   canvas.height = 300;
   const ctx = canvas.getContext("2d");
-
-  if (!ctx) {
-    const fallback = new THREE.CanvasTexture(canvas);
-    textureCache[role] = fallback;
-    return fallback;
-  }
-
-  switch (role) {
-    case "dev":
-      drawVSCode(ctx);
-      break;
-    case "qa":
-      drawGitHubAndTerminal(ctx);
-      break;
-    case "pm":
-      drawKanbanBoard(ctx);
-      break;
-    case "analyst":
-      drawDatabaseAnalytics(ctx);
-      break;
-    case "devops":
-      drawDevOpsDashboard(ctx);
-      break;
-    case "dba":
-      drawPostgresEditor(ctx);
-      break;
-    case "security":
-      drawSecurityGuard(ctx);
-      break;
-    case "designer":
-      drawFigmaCanvas(ctx);
-      break;
-    default:
-      drawVSCode(ctx);
-  }
+  if (ctx) drawBase(ctx, role);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.minFilter = THREE.LinearFilter;
   texture.magFilter = THREE.LinearFilter;
   textureCache[role] = texture;
   return texture;
+}
+
+function drawBase(ctx: CanvasRenderingContext2D, role: string) {
+  switch (role) {
+    case "qa":
+      return drawGitHubAndTerminal(ctx);
+    case "pm":
+      return drawKanbanBoard(ctx);
+    case "analyst":
+      return drawDatabaseAnalytics(ctx);
+    case "devops":
+      return drawDevOpsDashboard(ctx);
+    case "dba":
+      return drawPostgresEditor(ctx);
+    case "security":
+      return drawSecurityGuard(ctx);
+    case "designer":
+      return drawFigmaCanvas(ctx);
+    default:
+      return drawVSCode(ctx);
+  }
+}
+
+// Repaints a desk monitor with a live "recent activity" panel over the role's app.
+export function updateScreenActivity(role: string, lines: string[], working: boolean) {
+  const texture = getScreenTexture(role);
+  const ctx = (texture.image as HTMLCanvasElement).getContext("2d");
+  if (!ctx) return;
+  drawBase(ctx, role);
+  if (lines.length > 0) {
+    ctx.fillStyle = "rgba(2,6,23,0.94)";
+    ctx.fillRect(0, 196, 512, 104);
+    ctx.fillStyle = working ? "#22c55e" : "#f59e0b";
+    ctx.beginPath();
+    ctx.arc(16, 212, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.font = "bold 11px monospace";
+    ctx.fillText(working ? "LIVE • WORKING" : "IDLE", 28, 216);
+    ctx.fillStyle = "#e2e8f0";
+    ctx.font = "11px monospace";
+    lines.slice(-4).forEach((line, i) => {
+      ctx.fillText(line.length > 70 ? line.slice(0, 69) + "…" : line, 12, 236 + i * 17);
+    });
+  }
+  texture.needsUpdate = true;
 }
 
 // Helper for window controls

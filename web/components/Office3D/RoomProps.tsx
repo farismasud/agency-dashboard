@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
-import type { AgentState } from "@/lib/types";
+import type { AgentState, RoadmapData } from "@/lib/types";
 import { ROLE_RING_COLOR } from "./layout";
 import { getScreenTexture } from "./ScreenTextures";
 
@@ -620,8 +620,53 @@ export function ServerRack({ position, onInteract }: { position: Vec3; onInterac
   );
 }
 
-export function MeetingScreen({ position }: { position: Vec3 }) {
-  const texture = getScreenTexture("pm");
+function drawRoadmap(ctx: CanvasRenderingContext2D, roadmap: RoadmapData) {
+  ctx.fillStyle = "#0f172a";
+  ctx.fillRect(0, 0, 512, 288);
+  ctx.fillStyle = "#e2e8f0";
+  ctx.font = "bold 20px sans-serif";
+  ctx.fillText("ROADMAP PROYEK", 20, 34);
+  const modules = roadmap.modules.slice(0, 7);
+  const avg = Math.round(modules.reduce((sum, m) => sum + m.progress, 0) / Math.max(1, modules.length));
+  ctx.fillStyle = "#22d3ee";
+  ctx.font = "bold 16px monospace";
+  ctx.fillText(`${avg}% total`, 390, 34);
+  modules.forEach((m, i) => {
+    const y = 60 + i * 32;
+    const pct = Math.max(0, Math.min(100, m.progress));
+    ctx.fillStyle = "#cbd5e1";
+    ctx.font = "13px sans-serif";
+    ctx.fillText(m.title.length > 34 ? m.title.slice(0, 33) + "…" : m.title, 20, y + 4);
+    ctx.fillStyle = "#1e293b";
+    ctx.fillRect(270, y - 8, 180, 14);
+    ctx.fillStyle = pct >= 100 ? "#22c55e" : pct >= 50 ? "#38bdf8" : "#f59e0b";
+    ctx.fillRect(270, y - 8, (180 * pct) / 100, 14);
+    ctx.fillStyle = "#e2e8f0";
+    ctx.font = "bold 12px monospace";
+    ctx.fillText(`${pct}%`, 460, y + 4);
+  });
+}
+
+// Shows live roadmap progress when the project has one, else the PM kanban.
+export function MeetingScreen({ position, roadmap }: { position: Vec3; roadmap?: RoadmapData | null }) {
+  const fallback = getScreenTexture("pm");
+  const roadmapKey = roadmap?.modules.length ? JSON.stringify(roadmap.modules) : "";
+  const texture = useMemo(() => {
+    if (!roadmapKey || !roadmap) return fallback;
+    const c = document.createElement("canvas");
+    c.width = 512;
+    c.height = 288;
+    const ctx = c.getContext("2d");
+    if (ctx) drawRoadmap(ctx, roadmap);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roadmapKey, fallback]);
+  useEffect(() => () => {
+    if (texture !== fallback) texture.dispose();
+  }, [texture, fallback]);
+
   return (
     <group position={position}>
       <mesh castShadow>

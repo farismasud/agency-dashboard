@@ -5,10 +5,10 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Environment, Lightformer, OrbitControls, Sky, Stars } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import * as THREE from "three";
-import type { AgentState } from "@/lib/types";
+import type { AgentState, RoadmapData } from "@/lib/types";
 import { FLOOR2_Y } from "./layout";
 import type { ViewFloor } from "./CharacterModel";
-import { AllDesks } from "./DeskProp";
+import { AllDesks, type DeskActivity } from "./DeskProp";
 import { GroundFloorShell, Grounds, Staircase, UpperFloorShell } from "./Building";
 import { ConferenceMeetingTable, CoffeeEspressoBar, PendantLamp, PottedPlant, WallBookshelf, WallWhiteboard } from "./OfficeProps";
 import {
@@ -135,11 +135,11 @@ function Lighting({ night }: { night: boolean }) {
   );
 }
 
-function GroundFloor({ night, onInteract }: { night: boolean; onInteract?: InteractFn }) {
+function GroundFloor({ night, activity, roadmap, onInteract }: { night: boolean; activity: Record<string, DeskActivity>; roadmap?: RoadmapData | null; onInteract?: InteractFn }) {
   return (
     <group>
       <GroundFloorShell night={night} />
-      <AllDesks floor={1} />
+      <AllDesks floor={1} activity={activity} />
       <Rug position={[-5, 0.004, -1.75]} size={[6.6, 6.8]} color="#cbd5e1" border="#94a3b8" />
       <PendantLamp position={[-6.5, 2.35, -1.75]} onInteract={onInteract} />
       <PendantLamp position={[-3.5, 2.35, -1.75]} onInteract={onInteract} />
@@ -150,7 +150,7 @@ function GroundFloor({ night, onInteract }: { night: boolean; onInteract?: Inter
 
       {/* Meeting room */}
       <ConferenceMeetingTable position={[6, 0, -4.2]} onInteract={onInteract} />
-      <MeetingScreen position={[6, 1.7, -6.95]} />
+      <MeetingScreen position={[6, 1.7, -6.95]} roadmap={roadmap} />
       <PendantLamp position={[6, 2.35, -4.2]} onInteract={onInteract} />
 
       {/* Pantry */}
@@ -171,12 +171,12 @@ function GroundFloor({ night, onInteract }: { night: boolean; onInteract?: Inter
   );
 }
 
-function UpperFloor({ night, agents, onInteract }: { night: boolean; agents: Record<string, AgentState>; onInteract?: InteractFn }) {
+function UpperFloor({ night, agents, activity, onInteract }: { night: boolean; agents: Record<string, AgentState>; activity: Record<string, DeskActivity>; onInteract?: InteractFn }) {
   const y = FLOOR2_Y;
   return (
     <group>
       <UpperFloorShell night={night} />
-      <AllDesks floor={2} />
+      <AllDesks floor={2} activity={activity} />
       <Rug position={[-4, y + 0.004, -2.85]} size={[6.4, 6.8]} color="#e7e0d6" border="#c4b8a6" />
       <WallWhiteboard position={[-9.97, y + 1.6, -3]} rotation={[0, Math.PI / 2, 0]} onInteract={onInteract} />
       <WallBookshelf position={[-8, y + 1.0, -6.85]} onInteract={onInteract} />
@@ -224,10 +224,14 @@ export function Scene({
   timeOfDay = "day",
   viewFloor,
   focus,
+  deskActivity,
+  roadmap,
   onInteractProp,
 }: {
   children: ReactNode;
   agents: Record<string, AgentState>;
+  deskActivity: Record<string, DeskActivity>;
+  roadmap?: RoadmapData | null;
   timeOfDay?: "day" | "night";
   viewFloor: ViewFloor;
   focus: CameraFocus;
@@ -267,8 +271,8 @@ export function Scene({
         <Tree key={`${x}-${z}`} position={[x, -0.2, z]} scale={s} />
       ))}
 
-      <GroundFloor night={night} onInteract={onInteractProp} />
-      {viewFloor !== 1 && <UpperFloor night={night} agents={agents} onInteract={onInteractProp} />}
+      <GroundFloor night={night} activity={deskActivity} roadmap={roadmap} onInteract={onInteractProp} />
+      {viewFloor !== 1 && <UpperFloor night={night} agents={agents} activity={deskActivity} onInteract={onInteractProp} />}
 
       {children}
     </Canvas>

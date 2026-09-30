@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import type { AgentState, FeedEvent } from "@/lib/types";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { AgentState, FeedEvent, RoadmapData } from "@/lib/types";
 import { Scene, VIEW_PRESETS, type CameraFocus } from "./Scene";
 import { CharacterModel, type LiveAgentStatus, type ViewFloor } from "./CharacterModel";
 import { LabelOverlay } from "./LabelOverlay";
 import { CameraProjector } from "./CameraProjector";
 import { supportsWebGL } from "./supportsWebGL";
+import type { DeskActivity } from "./DeskProp";
 import { DESK_POS_3D } from "./layout";
 import { EMPTY_CURSOR, processFeed, type AgentDirective } from "./activity";
 
@@ -23,12 +24,14 @@ const presetFor = (floor: ViewFloor): CameraFocus => ({ ...VIEW_PRESETS[floor ==
 export function Office({
   agents,
   feed,
+  roadmap,
   onSelectAgent,
   onInteractProp,
   timeOfDay = "day",
 }: {
   agents: Record<string, AgentState>;
   feed?: FeedEvent[];
+  roadmap?: RoadmapData | null;
   onSelectAgent?: (agent: AgentState) => void;
   onInteractProp?: (title: string, message: string, icon: string) => void;
   timeOfDay?: "day" | "night";
@@ -46,6 +49,19 @@ export function Office({
   useEffect(() => {
     setWebglOk(supportsWebGL());
   }, []);
+
+  // Last few feed lines per agent, painted onto their desk monitor.
+  const deskActivity = useMemo(() => {
+    const out: Record<string, DeskActivity> = {};
+    for (const ev of feed ?? []) {
+      const entry = (out[ev.subagent_type] ??= { lines: [], working: false });
+      const time = new Date(ev.timestamp).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+      entry.lines.push(`${time} ${ev.tool_name || ev.event_type}: ${ev.summary || ""}`.trim());
+      if (entry.lines.length > 4) entry.lines.shift();
+    }
+    for (const [role, entry] of Object.entries(out)) entry.working = agents[role]?.status === "working";
+    return out;
+  }, [feed, agents]);
 
   // New feed events → per-agent directives (where to walk + what to say).
   const [directives, setDirectives] = useState<Record<string, AgentDirective>>({});
@@ -104,7 +120,7 @@ export function Office({
 
   return (
     <div className="relative w-full h-full overflow-hidden bg-zinc-950 select-none">
-      <Scene agents={agents} timeOfDay={timeOfDay} viewFloor={viewFloor} focus={focus} onInteractProp={onInteractProp}>
+      <Scene agents={agents} timeOfDay={timeOfDay} viewFloor={viewFloor} focus={focus} deskActivity={deskActivity} roadmap={roadmap} onInteractProp={onInteractProp}>
         {Object.values(agents).map((agent) => (
           <CharacterModel
             key={agent.subagent_type}

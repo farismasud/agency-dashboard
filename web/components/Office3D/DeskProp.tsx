@@ -1,10 +1,21 @@
 "use client";
 
+import { useEffect } from "react";
 import { DESK_POS_3D } from "./layout";
-import { getScreenTexture } from "./ScreenTextures";
+import { getScreenTexture, updateScreenActivity } from "./ScreenTextures";
 
-export function DeskProp({ role, x, y = 0, z }: { role?: string; x: number; y?: number; z: number }) {
+export interface DeskActivity {
+  lines: string[];
+  working: boolean;
+}
+
+export function DeskProp({ role, x, y = 0, z, activity }: { role?: string; x: number; y?: number; z: number; activity?: DeskActivity }) {
   const screenTexture = getScreenTexture(role ?? "dev");
+  const linesKey = activity ? `${activity.working}|${activity.lines.join("\n")}` : "";
+  useEffect(() => {
+    if (role && activity) updateScreenActivity(role, activity.lines, activity.working);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role, linesKey]);
 
   return (
     <group position={[x, y, z]}>
@@ -139,13 +150,13 @@ export function DeskProp({ role, x, y = 0, z }: { role?: string; x: number; y?: 
   );
 }
 
-export function AllDesks({ floor }: { floor: 1 | 2 }) {
+export function AllDesks({ floor, activity }: { floor: 1 | 2; activity: Record<string, DeskActivity> }) {
   return (
     <>
       {Object.entries(DESK_POS_3D)
         .filter(([, [, y]]) => (y > 1 ? 2 : 1) === floor)
         .map(([role, [x, y, z]]) => (
-        <DeskProp key={role} role={role} x={x} y={y} z={z} />
+        <DeskProp key={role} role={role} x={x} y={y} z={z} activity={activity[role]} />
       ))}
     </>
   );

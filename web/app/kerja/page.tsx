@@ -195,6 +195,7 @@ export default function KerjaPage() {
           <Office
             agents={activeAgents}
             feed={room?.feed}
+            roadmap={room?.roadmap}
             timeOfDay={timeOfDay}
             onSelectAgent={(agent) => setSelectedAgent(agent)}
             onInteractProp={(title, message, icon) => setPropNotice({ title, message, icon })}
