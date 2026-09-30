@@ -11,10 +11,13 @@ import {
   claimSpot,
   getDeskSpot,
   getRandomDialogue,
+  getSpotById,
+  pickBreakSpot,
   pickNextSpot,
   type NavWaypoint,
   type OfficeSpot,
 } from "./AgentBehavior";
+import type { AgentDirective } from "./activity";
 
 const WALK_SPEED = 2.4; // world units per second
 
@@ -672,8 +675,10 @@ export function CharacterModel({
   onSelect,
   livePositionsRef,
   viewFloor,
+  directive,
 }: {
   agent: AgentState;
+  directive?: AgentDirective;
   onSelect?: (agent: AgentState) => void;
   livePositionsRef?: React.MutableRefObject<Record<string, LiveAgentStatus>>;
   viewFloor: ViewFloor;
@@ -718,15 +723,15 @@ export function CharacterModel({
     randomSeed.current = Math.random() * 100;
   }, [role]);
 
-  // A live event from the backend pulls a working agent back to their desk.
+  // Live backend activity: walk to where the work happens and hold there a while.
   useEffect(() => {
-    if (!agent.last_action) return;
-    currentDialogue.current = agent.last_action;
-    if (!working) return;
-    goTo(getDeskSpot(role));
-    nextChangeTime.current = performance.now() + 18000;
+    if (!directive) return;
+    currentDialogue.current = directive.text;
+    const spot = directive.spotId === "break" ? pickBreakSpot(role) : getSpotById(role, directive.spotId);
+    if (spot) goTo(spot);
+    nextChangeTime.current = performance.now() + 20000;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agent.last_action, role, working]);
+  }, [directive?.key, role]);
 
   useEffect(() => {
     if (!hovered) return;

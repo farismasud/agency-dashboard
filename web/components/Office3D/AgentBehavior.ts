@@ -143,11 +143,26 @@ export function claimSpot(role: string, spot: OfficeSpot) {
 export function pickNextSpot(role: string, working: boolean, current: OfficeSpot): OfficeSpot {
   const desk = getDeskSpot(role);
   if (current.id !== desk.id && Math.random() < (working ? 0.7 : 0.25)) return desk;
-  const options = getOfficeSpots(role).filter((s) => {
-    const owner = claimedSpots.get(s.id);
-    return s.id !== current.id && (!owner || owner === role);
-  });
+  const options = getOfficeSpots(role).filter((s) => s.id !== current.id && isFreeFor(role, s));
   return options[Math.floor(Math.random() * options.length)] ?? desk;
+}
+
+const isFreeFor = (role: string, spot: OfficeSpot) => {
+  const owner = claimedSpots.get(spot.id);
+  return !owner || owner === role;
+};
+
+export function getSpotById(role: string, id: string): OfficeSpot | undefined {
+  if (id === `desk-${role}`) return getDeskSpot(role);
+  return getOfficeSpots(role).find((s) => s.id === id);
+}
+
+const BREAK_CATEGORIES: SpotCategory[] = ["tv", "coffee", "game", "balcony", "sofa"];
+
+// A free relax spot for after a finished task; falls back to the desk.
+export function pickBreakSpot(role: string): OfficeSpot {
+  const options = SHARED_SPOTS.filter((s) => BREAK_CATEGORIES.includes(s.category) && isFreeFor(role, s));
+  return options[Math.floor(Math.random() * options.length)] ?? getDeskSpot(role);
 }
 
 // ---- Navigation: spot -> corridor -> (stairs) -> corridor -> spot ----

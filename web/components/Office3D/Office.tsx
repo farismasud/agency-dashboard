@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { AgentState } from "@/lib/types";
+import type { AgentState, FeedEvent } from "@/lib/types";
 import { Scene, VIEW_PRESETS, type CameraFocus } from "./Scene";
 import { CharacterModel, type LiveAgentStatus, type ViewFloor } from "./CharacterModel";
 import { LabelOverlay } from "./LabelOverlay";
 import { CameraProjector } from "./CameraProjector";
 import { supportsWebGL } from "./supportsWebGL";
+import { DESK_POS_3D } from "./layout";
+import { EMPTY_CURSOR, processFeed, type AgentDirective } from "./activity";
+
+const KNOWN_ROLES = new Set(Object.keys(DESK_POS_3D));
 
 const FLOOR_BUTTONS: { value: ViewFloor; label: string; icon: string }[] = [
   { value: "all", label: "Gedung", icon: "🏢" },
@@ -18,11 +22,13 @@ const presetFor = (floor: ViewFloor): CameraFocus => ({ ...VIEW_PRESETS[floor ==
 
 export function Office({
   agents,
+  feed,
   onSelectAgent,
   onInteractProp,
   timeOfDay = "day",
 }: {
   agents: Record<string, AgentState>;
+  feed?: FeedEvent[];
   onSelectAgent?: (agent: AgentState) => void;
   onInteractProp?: (title: string, message: string, icon: string) => void;
   timeOfDay?: "day" | "night";
@@ -40,6 +46,29 @@ export function Office({
   useEffect(() => {
     setWebglOk(supportsWebGL());
   }, []);
+
+  // New feed events → per-agent directives (where to walk + what to say).
+  const [directives, setDirectives] = useState<Record<string, AgentDirective>>({});
+  const feedCursor = useRef(EMPTY_CURSOR);
+  const directiveSeq = useRef(0);
+  useEffect(() => {
+    // No room (none picked / socket reconnecting): the next snapshot is history, not news.
+    if (!feed) {
+      feedCursor.current = EMPTY_CURSOR;
+      return;
+    }
+    const name = (role: string) => agents[role]?.display_name || role.toUpperCase();
+    const { cursor, activities } = processFeed(feedCursor.current, feed, name, KNOWN_ROLES);
+    feedCursor.current = cursor;
+    const roles = Object.keys(activities);
+    if (roles.length === 0) return;
+    setDirectives((prev) => {
+      const next = { ...prev };
+      for (const role of roles) next[role] = { ...activities[role], key: ++directiveSeq.current };
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feed]);
 
   const showFloor = (floor: ViewFloor) => {
     setViewFloor(floor);
@@ -83,6 +112,7 @@ export function Office({
             onSelect={selectAgent}
             livePositionsRef={livePositionsRef}
             viewFloor={viewFloor}
+            directive={directives[agent.subagent_type]}
           />
         ))}
         <CameraProjector agents={agents} labelRefs={labelRefs} livePositionsRef={livePositionsRef} />

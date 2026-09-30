@@ -194,6 +194,7 @@ export default function KerjaPage() {
         <div className="absolute inset-0 z-0">
           <Office
             agents={activeAgents}
+            feed={room?.feed}
             timeOfDay={timeOfDay}
             onSelectAgent={(agent) => setSelectedAgent(agent)}
             onInteractProp={(title, message, icon) => setPropNotice({ title, message, icon })}
