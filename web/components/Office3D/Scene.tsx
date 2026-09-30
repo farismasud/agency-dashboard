@@ -7,7 +7,7 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import * as THREE from "three";
 import type { AgentState, RoadmapData } from "@/lib/types";
 import { FLOOR2_Y } from "./layout";
-import type { ViewFloor } from "./CharacterModel";
+import type { LiveAgentStatus, ViewFloor } from "./CharacterModel";
 import { AllDesks, type DeskActivity } from "./DeskProp";
 import { GroundFloorShell, Grounds, Staircase, UpperFloorShell } from "./Building";
 import { ConferenceMeetingTable, CoffeeEspressoBar, PendantLamp, PottedPlant, WallBookshelf, WallWhiteboard } from "./OfficeProps";
@@ -48,18 +48,36 @@ export const VIEW_PRESETS: Record<"all" | "1" | "2", Omit<CameraFocus, "key">> =
 };
 
 // Glides the orbit camera to `focus`; any user drag cancels the glide.
-function CameraRig({ focus }: { focus: CameraFocus }) {
+// While `follow` names an agent, target and camera translate with them each
+// frame, so the user can still orbit/zoom around the moving agent.
+function CameraRig({
+  focus,
+  follow,
+  livePositionsRef,
+  onFollowFloorChange,
+}: {
+  focus: CameraFocus;
+  follow: string | null;
+  livePositionsRef: React.MutableRefObject<Record<string, LiveAgentStatus>>;
+  onFollowFloorChange: (upstairs: boolean) => void;
+}) {
   const controls = useThree((s) => s.controls) as OrbitControlsImpl | null;
   const camera = useThree((s) => s.camera);
   const active = useRef(false);
   const target = useMemo(() => new THREE.Vector3(), []);
   const position = useMemo(() => new THREE.Vector3(), []);
+  const step = useMemo(() => new THREE.Vector3(), []);
+  const followUpstairs = useRef<boolean | null>(null);
 
   useEffect(() => {
     target.set(...focus.target);
     position.set(...focus.position);
     active.current = true;
   }, [focus, target, position]);
+
+  useEffect(() => {
+    followUpstairs.current = null;
+  }, [follow]);
 
   useEffect(() => {
     if (!controls) return;
@@ -71,8 +89,22 @@ function CameraRig({ focus }: { focus: CameraFocus }) {
   }, [controls]);
 
   useFrame((_, dt) => {
-    if (!active.current || !controls) return;
+    if (!controls) return;
     const k = 1 - Math.exp(-dt * 3.5);
+    const live = follow ? livePositionsRef.current[follow] : undefined;
+    if (live) {
+      const upstairs = live.y > 1.8;
+      if (upstairs !== followUpstairs.current) {
+        followUpstairs.current = upstairs;
+        onFollowFloorChange(upstairs);
+      }
+      step.set(live.x, live.y + 1, live.z).sub(controls.target).multiplyScalar(k);
+      controls.target.add(step);
+      camera.position.add(step);
+      controls.update();
+      return;
+    }
+    if (!active.current) return;
     controls.target.lerp(target, k);
     camera.position.lerp(position, k);
     controls.update();
@@ -226,6 +258,9 @@ export function Scene({
   focus,
   deskActivity,
   roadmap,
+  follow,
+  livePositionsRef,
+  onFollowFloorChange,
   onInteractProp,
 }: {
   children: ReactNode;
@@ -235,6 +270,9 @@ export function Scene({
   timeOfDay?: "day" | "night";
   viewFloor: ViewFloor;
   focus: CameraFocus;
+  follow: string | null;
+  livePositionsRef: React.MutableRefObject<Record<string, LiveAgentStatus>>;
+  onFollowFloorChange: (upstairs: boolean) => void;
   onInteractProp?: InteractFn;
 }) {
   const night = timeOfDay === "night";
@@ -266,7 +304,7 @@ export function Scene({
           setShadows(false);
         }}
       />
-      <CameraRig focus={focus} />
+      <CameraRig focus={focus} follow={follow} livePositionsRef={livePositionsRef} onFollowFloorChange={onFollowFloorChange} />
       <Lighting night={night} shadows={shadows} />
 
       <Grounds night={night} />

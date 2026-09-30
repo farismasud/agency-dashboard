@@ -7,6 +7,8 @@ import { CharacterModel, type LiveAgentStatus, type ViewFloor } from "./Characte
 import { LabelOverlay } from "./LabelOverlay";
 import { CameraProjector } from "./CameraProjector";
 import { supportsWebGL } from "./supportsWebGL";
+import { Minimap } from "./Minimap";
+import { setSoundEnabled, sfx } from "./sfx";
 import type { DeskActivity } from "./DeskProp";
 import { DESK_POS_3D } from "./layout";
 import { EMPTY_CURSOR, processFeed, type AgentDirective } from "./activity";
@@ -83,27 +85,49 @@ export function Office({
       for (const role of roles) next[role] = { ...activities[role], key: ++directiveSeq.current };
       return next;
     });
+    sfx.chime();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feed]);
 
+  const [follow, setFollow] = useState<string | null>(null);
+  const [lastSelected, setLastSelected] = useState<AgentState | null>(null);
+  const [showMap, setShowMap] = useState(true);
+  const [soundOn, setSoundOn] = useState(false);
+
+  // Esc stops following.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFollow(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   const showFloor = (floor: ViewFloor) => {
+    sfx.click();
+    setFollow(null);
     setViewFloor(floor);
     setFocus(presetFor(floor));
   };
 
+  const focusOn = (x: number, y: number, z: number) =>
+    setFocus({ target: [x, y + 1, z], position: [x + 4.2, y + 4.2, z + 5.2], key: Date.now() });
+
   // Clicking an agent flies the camera to them (switching floors if needed) and opens the dossier.
   const selectAgent = (agent: AgentState) => {
+    sfx.click();
     const live = livePositionsRef.current[agent.subagent_type];
     if (live) {
-      const upstairs = live.y > 1.8;
-      setViewFloor(upstairs ? 2 : 1);
-      setFocus({
-        target: [live.x, live.y + 1, live.z],
-        position: [live.x + 4.2, live.y + 4.2, live.z + 5.2],
-        key: Date.now(),
-      });
+      setViewFloor(live.y > 1.8 ? 2 : 1);
+      focusOn(live.x, live.y, live.z);
     }
+    setLastSelected(agent);
     onSelectAgent?.(agent);
+  };
+
+  const interactProp = (title: string, message: string, icon: string) => {
+    sfx.click();
+    onInteractProp?.(title, message, icon);
   };
 
   if (webglOk === false) {
@@ -118,9 +142,23 @@ export function Office({
     return <div className="w-full h-full bg-zinc-950 animate-pulse" />;
   }
 
+  const followName = follow ? agents[follow]?.display_name || follow : "";
+  const chip = "px-2.5 py-1.5 rounded-xl text-xs transition-colors";
+
   return (
     <div className="relative w-full h-full overflow-hidden bg-zinc-950 select-none">
-      <Scene agents={agents} timeOfDay={timeOfDay} viewFloor={viewFloor} focus={focus} deskActivity={deskActivity} roadmap={roadmap} onInteractProp={onInteractProp}>
+      <Scene
+        agents={agents}
+        timeOfDay={timeOfDay}
+        viewFloor={viewFloor}
+        focus={focus}
+        deskActivity={deskActivity}
+        roadmap={roadmap}
+        follow={follow}
+        livePositionsRef={livePositionsRef}
+        onFollowFloorChange={(upstairs) => setViewFloor(upstairs ? 2 : 1)}
+        onInteractProp={interactProp}
+      >
         {Object.values(agents).map((agent) => (
           <CharacterModel
             key={agent.subagent_type}
@@ -135,27 +173,82 @@ export function Office({
       </Scene>
       <LabelOverlay agents={agents} labelRefs={labelRefs} onSelectAgent={selectAgent} />
 
-      {/* Floor switcher */}
-      <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 rounded-2xl bg-zinc-900/85 backdrop-blur-md border border-zinc-700/70 p-1 shadow-2xl">
-        {FLOOR_BUTTONS.map((b) => (
+      <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2">
+        {showMap && (
+          <Minimap
+            agents={agents}
+            livePositionsRef={livePositionsRef}
+            onPick={(floor, x, z) => {
+              sfx.click();
+              setFollow(null);
+              setViewFloor(floor);
+              focusOn(x, floor === 2 ? 3.6 : 0, z);
+            }}
+          />
+        )}
+
+        <div className="flex items-center gap-1 rounded-2xl bg-zinc-900/85 backdrop-blur-md border border-zinc-700/70 p-1 shadow-2xl">
+          {FLOOR_BUTTONS.map((b) => (
+            <button
+              key={String(b.value)}
+              onClick={() => showFloor(b.value)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                viewFloor === b.value && !follow ? "bg-cyan-500 text-zinc-950 shadow" : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
+              }`}
+            >
+              <span>{b.icon}</span>
+              <span>{b.label}</span>
+            </button>
+          ))}
+          <span className="w-px h-5 bg-zinc-700 mx-0.5" />
+          {follow ? (
+            <button onClick={() => setFollow(null)} className={`${chip} bg-rose-500 text-white font-semibold`} title="Berhenti mengikuti (Esc)">
+              🎥 {followName} ✕
+            </button>
+          ) : (
+            lastSelected && (
+              <button
+                onClick={() => {
+                  sfx.click();
+                  setFollow(lastSelected.subagent_type);
+                }}
+                className={`${chip} text-zinc-300 hover:bg-zinc-800 hover:text-white`}
+                title="Kamera mengikuti agen ini"
+              >
+                🎥 Ikuti {lastSelected.display_name || lastSelected.subagent_type}
+              </button>
+            )
+          )}
           <button
-            key={String(b.value)}
-            onClick={() => showFloor(b.value)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors ${
-              viewFloor === b.value ? "bg-cyan-500 text-zinc-950 shadow" : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
-            }`}
+            onClick={() => setShowMap((v) => !v)}
+            className={`${chip} ${showMap ? "text-cyan-300" : "text-zinc-400"} hover:bg-zinc-800`}
+            title="Minimap"
           >
-            <span>{b.icon}</span>
-            <span>{b.label}</span>
+            🗺️
           </button>
-        ))}
-        <button
-          onClick={() => setFocus(presetFor(viewFloor))}
-          className="px-2.5 py-1.5 rounded-xl text-xs text-zinc-400 hover:bg-zinc-800 hover:text-white"
-          title="Reset kamera"
-        >
-          ⟲
-        </button>
+          <button
+            onClick={() => {
+              const next = !soundOn;
+              setSoundEnabled(next);
+              setSoundOn(next);
+              if (next) sfx.click();
+            }}
+            className={`${chip} ${soundOn ? "text-cyan-300" : "text-zinc-400"} hover:bg-zinc-800`}
+            title="Efek suara"
+          >
+            {soundOn ? "🔊" : "🔇"}
+          </button>
+          <button
+            onClick={() => {
+              setFollow(null);
+              setFocus(presetFor(viewFloor));
+            }}
+            className={`${chip} text-zinc-400 hover:bg-zinc-800 hover:text-white`}
+            title="Reset kamera"
+          >
+            ⟲
+          </button>
+        </div>
       </div>
     </div>
   );
