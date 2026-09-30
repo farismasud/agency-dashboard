@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Environment, Lightformer, OrbitControls, Sky, Stars } from "@react-three/drei";
+import { Environment, Lightformer, OrbitControls, PerformanceMonitor, Sky, Stars } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import * as THREE from "three";
 import type { AgentState, RoadmapData } from "@/lib/types";
@@ -82,7 +82,7 @@ function CameraRig({ focus }: { focus: CameraFocus }) {
   return null;
 }
 
-function Lighting({ night }: { night: boolean }) {
+function Lighting({ night, shadows }: { night: boolean; shadows: boolean }) {
   const sun: Vec3 = night ? [-12, 20, 8] : [16, 24, 10];
   return (
     <>
@@ -99,7 +99,7 @@ function Lighting({ night }: { night: boolean }) {
         position={sun}
         intensity={night ? 0.5 : 2.6}
         color={night ? "#a5b4fc" : "#fff4e0"}
-        castShadow
+        castShadow={shadows}
         shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-16}
         shadow-camera-right={16}
@@ -238,11 +238,14 @@ export function Scene({
   onInteractProp?: InteractFn;
 }) {
   const night = timeOfDay === "night";
+  // Adaptive quality: resolution follows measured FPS; persistent struggle also drops shadows.
+  const [dpr, setDpr] = useState(1.5);
+  const [shadows, setShadows] = useState(true);
 
   return (
     <Canvas
       shadows="percentage"
-      dpr={[1, 2]}
+      dpr={dpr}
       camera={{ position: VIEW_PRESETS.all.position, fov: 42, near: 0.1, far: 500 }}
       gl={{ antialias: true }}
       style={{ width: "100%", height: "100%" }}
@@ -256,8 +259,15 @@ export function Scene({
         maxPolarAngle={Math.PI / 2.1}
         target={VIEW_PRESETS.all.target}
       />
+      <PerformanceMonitor
+        onChange={({ factor }) => setDpr(Math.round((1 + factor) * 10) / 10)}
+        onFallback={() => {
+          setDpr(1);
+          setShadows(false);
+        }}
+      />
       <CameraRig focus={focus} />
-      <Lighting night={night} />
+      <Lighting night={night} shadows={shadows} />
 
       <Grounds night={night} />
       {([

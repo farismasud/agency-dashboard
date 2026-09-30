@@ -196,13 +196,13 @@ function GlassWall({ from, to, y0, height, frosted = false }: { from: [number, n
         </mesh>
       )}
       {[0, height].map((y) => (
-        <mesh key={y} position={[0, y, 0]} castShadow raycast={noRaycast}>
+        <mesh key={y} position={[0, y, 0]} raycast={noRaycast}>
           <boxGeometry args={[length, 0.04, 0.05]} />
           <meshStandardMaterial color="#e2e8f0" metalness={0.4} roughness={0.35} />
         </mesh>
       ))}
       {Array.from({ length: mullions + 1 }).map((_, i) => (
-        <mesh key={i} position={[-length / 2 + (i * length) / mullions, height / 2, 0]} castShadow raycast={noRaycast}>
+        <mesh key={i} position={[-length / 2 + (i * length) / mullions, height / 2, 0]} raycast={noRaycast}>
           <boxGeometry args={[0.03, height, 0.05]} />
           <meshStandardMaterial color="#e2e8f0" metalness={0.4} roughness={0.35} />
         </mesh>
