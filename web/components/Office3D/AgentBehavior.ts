@@ -160,8 +160,8 @@ export function getSpotById(role: string, id: string): OfficeSpot | undefined {
 const BREAK_CATEGORIES: SpotCategory[] = ["tv", "coffee", "game", "balcony", "sofa"];
 
 // A free relax spot for after a finished task; falls back to the desk.
-export function pickBreakSpot(role: string): OfficeSpot {
-  const options = SHARED_SPOTS.filter((s) => BREAK_CATEGORIES.includes(s.category) && isFreeFor(role, s));
+export function pickBreakSpot(role: string, categories: SpotCategory[] = BREAK_CATEGORIES): OfficeSpot {
+  const options = SHARED_SPOTS.filter((s) => categories.includes(s.category) && isFreeFor(role, s));
   return options[Math.floor(Math.random() * options.length)] ?? getDeskSpot(role);
 }
 

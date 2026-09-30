@@ -20,6 +20,7 @@ import {
 import type { AgentDirective } from "./activity";
 
 const WALK_SPEED = 2.4; // world units per second
+const SLEEP_AFTER_MS = 5 * 60_000; // idle this long → nap
 
 export type ViewFloor = "all" | 1 | 2;
 
@@ -642,6 +643,20 @@ function bookPose(t: number): PoseData {
   };
 }
 
+function sleepPose(t: number): PoseData {
+  const breath = Math.sin(t * 1.2) * 0.03;
+  return {
+    ...sofaPose(t),
+    spineX: -0.35 + breath,
+    headX: 0.45,
+    headZ: 0.35,
+    lShX: -0.2,
+    lElX: -0.6,
+    rShX: -0.2,
+    rElX: -0.6,
+  };
+}
+
 function poseForSpot(spot: OfficeSpot, working: boolean, t: number, seed: number): PoseData {
   switch (spot.category) {
     case "desk":
@@ -700,6 +715,7 @@ export function CharacterModel({
   const nextChangeTime = useRef<number>(0); // set on mount
   const walkPhase = useRef<number>(0);
   const randomSeed = useRef<number>(0);
+  const asleep = useRef(false);
 
   // Queue a walk to `spot`. Any leg already in progress is finished first so the
   // character always leaves from a known spot and stays on the corridor graph.
@@ -749,7 +765,17 @@ export function CharacterModel({
     const now = performance.now();
     const timeSec = now / 1000;
 
-    if (now > nextChangeTime.current && pathQueueRef.current.length === 0) {
+    // Long-idle agents nap on a sofa / beanbag until the next event wakes them.
+    const sleepy = !working && Date.now() - Date.parse(agent.last_event_at) > SLEEP_AFTER_MS;
+    if (sleepy && !asleep.current && pathQueueRef.current.length === 0) {
+      asleep.current = true;
+      currentDialogue.current = "💤 Zzz...";
+      goTo(pickBreakSpot(role, ["sofa", "tv"]));
+    } else if (!sleepy) {
+      asleep.current = false;
+    }
+
+    if (!asleep.current && now > nextChangeTime.current && pathQueueRef.current.length === 0) {
       nextChangeTime.current = now + 12000 + Math.random() * 16000;
       const next = pickNextSpot(role, working, currentSpotRef.current);
       currentDialogue.current =
@@ -801,7 +827,8 @@ export function CharacterModel({
       group.position.z = lerpVal(group.position.z, targetSpot.z, delta * 8);
       group.position.y = lerpVal(group.position.y, floorY(targetSpot.floor), delta * 8);
       group.rotation.y = lerpAngle(group.rotation.y, targetSpot.faceAngle, delta * 6);
-      applyPose(bones, poseForSpot(targetSpot, working, timeSec, randomSeed.current), delta);
+      const napping = asleep.current && (targetSpot.category === "sofa" || targetSpot.category === "tv");
+      applyPose(bones, napping ? sleepPose(timeSec) : poseForSpot(targetSpot, working, timeSec, randomSeed.current), delta);
       bones.mug.visible = targetSpot.category === "coffee" || targetSpot.category === "waterCooler";
     }
 

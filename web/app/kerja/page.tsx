@@ -102,6 +102,10 @@ export default function KerjaPage() {
       const time = params.get("time");
       if (time === "night" || time === "day") {
         setTimeOfDay(time);
+      } else {
+        // No override: follow the local clock (siang 06:00–17:59).
+        const hour = new Date().getHours();
+        setTimeOfDay(hour >= 6 && hour < 18 ? "day" : "night");
       }
     }
   }, []);
