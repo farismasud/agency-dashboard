@@ -1,6 +1,6 @@
 // Run: node web/components/Office3D/activity.check.ts
 import assert from "node:assert/strict";
-import { EMPTY_CURSOR, processFeed } from "./activity.ts";
+import { activityFor, EMPTY_CURSOR, processFeed } from "./activity.ts";
 import type { FeedEvent } from "../../lib/types.ts";
 
 const ev = (role: string, sec: number, tool = "", event_type = "PreToolUse"): FeedEvent => ({
@@ -23,6 +23,7 @@ let feed = [...history, ev("devops", 1, "Bash"), ev("dev", 2, "WebSearch")];
 ({ cursor, activities } = processFeed(cursor, feed, name, roles));
 assert.equal(activities.devops.spotId, "server-rack");
 assert.equal(activities.dev.spotId, "bookshelf");
+assert.equal(activityFor("dev", { ...ev("dev", 3, "Bash"), summary: "Bash: npm test" }).text, "⌨️ npm test");
 
 // Nothing new → no activities.
 ({ activities } = processFeed(cursor, feed, name, roles));

@@ -10,10 +10,10 @@ import { supportsWebGL } from "./supportsWebGL";
 import { Minimap } from "./Minimap";
 import { setSoundEnabled, sfx } from "./sfx";
 import type { DeskActivity } from "./DeskProp";
-import { DESK_POS_3D } from "./layout";
+import { guestSlot, isGuest } from "./layout";
+import { setGuestRoles } from "./AgentBehavior";
 import { EMPTY_CURSOR, processFeed, type AgentDirective } from "./activity";
 
-const KNOWN_ROLES = new Set(Object.keys(DESK_POS_3D));
 
 const FLOOR_BUTTONS: { value: ViewFloor; label: string; icon: string }[] = [
   { value: "all", label: "Gedung", icon: "🏢" },
@@ -52,6 +52,11 @@ export function Office({
     setWebglOk(supportsWebGL());
   }, []);
 
+  // Subagent types without a fixed desk get a hot desk (stable for the session).
+  const guests = Object.keys(agents).filter(isGuest);
+  for (const g of guests) guestSlot(g);
+  setGuestRoles(guests);
+
   // Last few feed lines per agent, painted onto their desk monitor.
   const deskActivity = useMemo(() => {
     const out: Record<string, DeskActivity> = {};
@@ -76,7 +81,7 @@ export function Office({
       return;
     }
     const name = (role: string) => agents[role]?.display_name || role.toUpperCase();
-    const { cursor, activities } = processFeed(feedCursor.current, feed, name, KNOWN_ROLES);
+    const { cursor, activities } = processFeed(feedCursor.current, feed, name, new Set(Object.keys(agents)));
     feedCursor.current = cursor;
     const roles = Object.keys(activities);
     if (roles.length === 0) return;

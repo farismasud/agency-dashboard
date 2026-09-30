@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { DESK_POS_3D } from "./layout";
+import { DESK_POS_3D, HOT_DESKS, guestAtSlot } from "./layout";
 import { getScreenTexture, updateScreenActivity } from "./ScreenTextures";
 
 export interface DeskActivity {
@@ -9,8 +9,22 @@ export interface DeskActivity {
   working: boolean;
 }
 
-export function DeskProp({ role, x, y = 0, z, activity }: { role?: string; x: number; y?: number; z: number; activity?: DeskActivity }) {
-  const screenTexture = getScreenTexture(role ?? "dev");
+export function DeskProp({
+  role,
+  x,
+  y = 0,
+  z,
+  rotationY = 0,
+  activity,
+}: {
+  role: string;
+  x: number;
+  y?: number;
+  z: number;
+  rotationY?: number;
+  activity?: DeskActivity;
+}) {
+  const screenTexture = getScreenTexture(role);
   const linesKey = activity ? `${activity.working}|${activity.lines.join("\n")}` : "";
   useEffect(() => {
     if (role && activity) updateScreenActivity(role, activity.lines, activity.working);
@@ -18,7 +32,7 @@ export function DeskProp({ role, x, y = 0, z, activity }: { role?: string; x: nu
   }, [role, linesKey]);
 
   return (
-    <group position={[x, y, z]}>
+    <group position={[x, y, z]} rotation={[0, rotationY, 0]}>
       {/* --- DESK STRUCTURE --- */}
       {/* Table Top (Walnut Wood) */}
       <mesh position={[0, 0.72, 0]} castShadow receiveShadow>
@@ -156,8 +170,23 @@ export function AllDesks({ floor, activity }: { floor: 1 | 2; activity: Record<s
       {Object.entries(DESK_POS_3D)
         .filter(([, [, y]]) => (y > 1 ? 2 : 1) === floor)
         .map(([role, [x, y, z]]) => (
-        <DeskProp key={role} role={role} x={x} y={y} z={z} activity={activity[role]} />
-      ))}
+          <DeskProp key={role} role={role} x={x} y={y} z={z} activity={activity[role]} />
+        ))}
+      {floor === 1 &&
+        HOT_DESKS.map(([x, y, z], slot) => {
+          const guest = guestAtSlot(slot);
+          return (
+            <DeskProp
+              key={`hot-${slot}`}
+              role={guest ?? `hotdesk-${slot}`}
+              x={x}
+              y={y}
+              z={z}
+              rotationY={Math.PI}
+              activity={guest ? activity[guest] : undefined}
+            />
+          );
+        })}
     </>
   );
 }

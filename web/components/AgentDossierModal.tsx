@@ -4,6 +4,7 @@ import type { AgentState } from "@/lib/types";
 import { ROLE_LABEL, ROLE_RING_COLOR } from "./Office3D/layout";
 
 const MODEL_INFO: Record<string, { model: string; desc: string }> = {
+  lead: { model: "Main session", desc: "Sesi utama Claude Code: mengarahkan & mendelegasikan tugas ke subagent" },
   pm: { model: "Opus (Claude 3.5 / Gemini Pro)", desc: "Project Manager: Task breakdown & Roadmap scheduling" },
   analyst: { model: "Sonnet (Claude 3.5 / Gemini Flash)", desc: "Research & Codebase investigation" },
   security: { model: "Sonnet (Claude 3.5 / Gemini Flash)", desc: "Security, Iron Rules & Migration Guard Auditor" },

@@ -15,8 +15,10 @@ export interface AgentDirective extends Activity {
 // Tool → where the agent goes. Unlisted tools fall back to their desk.
 export function activityFor(role: string, ev: FeedEvent): Activity {
   const desk = `desk-${role}`;
-  const detail = ev.summary && ev.summary !== ev.tool_name ? ev.summary : "";
-  const say = (fallback: string) => detail || fallback;
+  // Hook summaries look like "Bash: npm test"; show "⌨️ npm test" (fallback's emoji + detail).
+  const prefix = `${ev.tool_name}: `;
+  const detail = ev.summary?.startsWith(prefix) ? ev.summary.slice(prefix.length) : ev.summary !== ev.tool_name ? ev.summary : "";
+  const say = (fallback: string) => (detail ? `${fallback.split(" ")[0]} ${detail}` : fallback);
 
   if (ev.event_type === "SubagentStop") return { spotId: "break", text: "✅ Tugas selesai, rehat dulu ☕" };
   if (ev.event_type === "SubagentStart") return { spotId: desk, text: say("🚀 Mulai tugas baru") };

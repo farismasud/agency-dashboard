@@ -1,6 +1,6 @@
 "use client";
 
-import { DESK_POS_3D, FLOOR2_Y, floorY } from "./layout";
+import { DESK_POS_3D, FLOOR2_Y, HOT_DESKS, floorY, guestSlot, isGuest } from "./layout";
 
 export type SpotCategory =
   | "desk"
@@ -53,12 +53,27 @@ const DESK_VIA: Record<string, XZ[]> = {
   analyst: [[-4, 1], [-4, -3.1], [-2.5, -3.1]],
   security: [[-5.5, 1]],
   designer: [[-2.5, 1]],
+  lead: [[-0.3, 1], [-0.3, 4.3], [1.2, 4.3]],
 };
 
 const floorOfY = (y: number): 1 | 2 => (y > 1 ? 2 : 1);
 
 export function getDeskSpot(role: string): OfficeSpot {
-  const [dx, dy, dz] = DESK_POS_3D[role] ?? DESK_POS_3D.dev;
+  if (isGuest(role)) {
+    const slot = guestSlot(role);
+    const [hx, , hz] = HOT_DESKS[slot];
+    return {
+      id: `desk-${role}`,
+      x: hx,
+      z: hz - 0.65,
+      floor: 1,
+      faceAngle: 0,
+      category: "desk",
+      label: `Hot Desk ${slot + 1} (Lt. 1)`,
+      via: [[hx, 1.8]],
+    };
+  }
+  const [dx, dy, dz] = DESK_POS_3D[role];
   const floor = floorOfY(dy);
   return {
     id: `desk-${role}`,
@@ -112,8 +127,14 @@ const SHARED_SPOTS: OfficeSpot[] = [
   { id: "terrace-2", x: 8.6, z: 6.4, floor: 2, faceAngle: 0, category: "balcony", label: "Rooftop Terrace (Lt. 2)", via: [[2.5, 1], [2.5, 4.5], [8.6, 4.5]] },
 ];
 
+// Guests currently in the room (set by Office) so others can walk over to them.
+let guestRoles: string[] = [];
+export function setGuestRoles(roles: string[]) {
+  guestRoles = roles;
+}
+
 export function getOfficeSpots(role: string): OfficeSpot[] {
-  const visits = Object.keys(DESK_POS_3D)
+  const visits = [...Object.keys(DESK_POS_3D), ...guestRoles]
     .filter((colleague) => colleague !== role)
     .map((colleague): OfficeSpot => {
       const desk = getDeskSpot(colleague);

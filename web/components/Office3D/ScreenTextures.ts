@@ -26,6 +26,7 @@ function drawBase(ctx: CanvasRenderingContext2D, role: string) {
     case "qa":
       return drawGitHubAndTerminal(ctx);
     case "pm":
+    case "lead":
       return drawKanbanBoard(ctx);
     case "analyst":
       return drawDatabaseAnalytics(ctx);

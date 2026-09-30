@@ -48,6 +48,24 @@ export interface PersonLookConfig {
 }
 
 export const ROLE_LOOKS: Record<string, PersonLookConfig> = {
+  // Main Claude session
+  lead: {
+    shirt: "#1f2937", // Charcoal blazer
+    pants: "#111827",
+    skin: "#d6a07a",
+    hair: "#0c0a09",
+    hairStyle: "side",
+    tie: true,
+  },
+  // Any subagent type without its own look (Explore, general-purpose...)
+  guest: {
+    shirt: "#64748b",
+    pants: "#334155",
+    skin: "#e0b08a",
+    hair: "#3b2012",
+    hairStyle: "short",
+    backpack: true,
+  },
   // --- LANTAI 2 (Mezzanine: Strategy, Architecture & Security) ---
   pm: {
     shirt: "#7c3aed", // Royal violet collared shirt
@@ -705,7 +723,7 @@ export function CharacterModel({
   const role = agent.subagent_type;
   const ringColor = ROLE_RING_COLOR[role] ?? DEFAULT_RING_COLOR;
   const working = agent.status === "working";
-  const lookConfig = ROLE_LOOKS[role] ?? ROLE_LOOKS.dev;
+  const lookConfig = ROLE_LOOKS[role] ?? ROLE_LOOKS.guest;
 
   const bones = useMemo(() => buildPerson(lookConfig), [lookConfig]);
 
