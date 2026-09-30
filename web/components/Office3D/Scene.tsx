@@ -1,486 +1,275 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { Canvas } from "@react-three/fiber";
-import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
+import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Environment, Lightformer, OrbitControls, Sky, Stars } from "@react-three/drei";
+import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
+import * as THREE from "three";
+import type { AgentState } from "@/lib/types";
+import { FLOOR2_Y } from "./layout";
+import type { ViewFloor } from "./CharacterModel";
+import { AllDesks } from "./DeskProp";
+import { GroundFloorShell, Grounds, Staircase, UpperFloorShell } from "./Building";
+import { ConferenceMeetingTable, CoffeeEspressoBar, PendantLamp, PottedPlant, WallBookshelf, WallWhiteboard } from "./OfficeProps";
 import {
-  PottedPlant,
-  WallWhiteboard,
-  WallBookshelf,
-  BreakLoungeArea,
-  PendantLamp,
-  ArchitecturalStaircase,
-  MezzanineGlassRailing,
-  ConferenceMeetingTable,
+  ArcadeMachine,
+  BeanBag,
+  CoffeeTable,
   EntranceDoor,
-  CoffeeEspressoBar,
-} from "./OfficeProps";
+  HighTable,
+  type InteractFn,
+  LoungeChair,
+  LoungeTV,
+  MeetingScreen,
+  Parasol,
+  PingPongTable,
+  PlanterBox,
+  ReceptionDesk,
+  Rug,
+  ServerRack,
+  Sofa,
+  StringLights,
+  Tree,
+  WaterCooler,
+} from "./RoomProps";
+
+type Vec3 = [number, number, number];
+
+export interface CameraFocus {
+  target: Vec3;
+  position: Vec3;
+  key: number;
+}
+
+export const VIEW_PRESETS: Record<"all" | "1" | "2", Omit<CameraFocus, "key">> = {
+  all: { target: [0, 2.4, 0], position: [17, 15.5, 19] },
+  "1": { target: [0, 0.6, 0], position: [12.5, 11.5, 14.5] },
+  "2": { target: [0, FLOOR2_Y + 0.6, -0.3], position: [12.5, 14.5, 14.5] },
+};
+
+// Glides the orbit camera to `focus`; any user drag cancels the glide.
+function CameraRig({ focus }: { focus: CameraFocus }) {
+  const controls = useThree((s) => s.controls) as OrbitControlsImpl | null;
+  const camera = useThree((s) => s.camera);
+  const active = useRef(false);
+  const target = useMemo(() => new THREE.Vector3(), []);
+  const position = useMemo(() => new THREE.Vector3(), []);
+
+  useEffect(() => {
+    target.set(...focus.target);
+    position.set(...focus.position);
+    active.current = true;
+  }, [focus, target, position]);
+
+  useEffect(() => {
+    if (!controls) return;
+    const stop = () => {
+      active.current = false;
+    };
+    controls.addEventListener("start", stop);
+    return () => controls.removeEventListener("start", stop);
+  }, [controls]);
+
+  useFrame((_, dt) => {
+    if (!active.current || !controls) return;
+    const k = 1 - Math.exp(-dt * 3.5);
+    controls.target.lerp(target, k);
+    camera.position.lerp(position, k);
+    controls.update();
+    if (camera.position.distanceTo(position) < 0.02 && controls.target.distanceTo(target) < 0.02) active.current = false;
+  });
+
+  return null;
+}
+
+function Lighting({ night }: { night: boolean }) {
+  const sun: Vec3 = night ? [-12, 20, 8] : [16, 24, 10];
+  return (
+    <>
+      {night ? (
+        <>
+          <color attach="background" args={["#0b1020"]} />
+          <Stars radius={90} depth={40} count={2500} factor={4} fade speed={0.5} />
+        </>
+      ) : (
+        <Sky distance={450} sunPosition={sun} turbidity={3} rayleigh={1.1} mieCoefficient={0.004} />
+      )}
+      <hemisphereLight args={[night ? "#334155" : "#e0f2fe", night ? "#1c1917" : "#e7dccb", night ? 0.45 : 1.1]} />
+      <directionalLight
+        position={sun}
+        intensity={night ? 0.5 : 2.6}
+        color={night ? "#a5b4fc" : "#fff4e0"}
+        castShadow
+        shadow-mapSize={[2048, 2048]}
+        shadow-camera-left={-16}
+        shadow-camera-right={16}
+        shadow-camera-top={14}
+        shadow-camera-bottom={-14}
+        shadow-camera-far={70}
+        shadow-bias={-0.0004}
+        shadow-normalBias={0.02}
+      />
+      {/* Interior fill: ground floor is shaded by the upper slab, so it always needs its own lights */}
+      {([
+        [-5, 3.0, -1.8],
+        [5.8, 3.0, -4.2],
+        [5.8, 3.0, 3.0],
+        [-5, 3.0, 4.5],
+      ] as Vec3[]).map((p, i) => (
+        <pointLight key={i} position={p} intensity={night ? 9 : 5} distance={12} decay={1.4} color="#fff1dc" />
+      ))}
+      {night &&
+        ([
+          [-4, FLOOR2_Y + 2.6, -2.5],
+          [5.5, FLOOR2_Y + 2.6, -3],
+          [7, FLOOR2_Y + 2.4, 4.3],
+          [-2, FLOOR2_Y + 2.6, 4.3],
+        ] as Vec3[]).map((p, i) => <pointLight key={i} position={p} intensity={8} distance={11} decay={1.4} color="#ffe4bf" />)}
+      {/* Soft studio reflections without downloading an HDRI */}
+      <Environment resolution={128} frames={1}>
+        <Lightformer intensity={night ? 0.4 : 1.2} position={[0, 8, 0]} rotation-x={Math.PI / 2} scale={[20, 20, 1]} />
+        <Lightformer intensity={night ? 0.2 : 0.8} position={[0, 3, 12]} scale={[20, 6, 1]} color="#fde68a" />
+        <Lightformer intensity={night ? 0.2 : 0.6} position={[-12, 3, 0]} rotation-y={Math.PI / 2} scale={[20, 6, 1]} color="#bfdbfe" />
+      </Environment>
+    </>
+  );
+}
+
+function GroundFloor({ night, onInteract }: { night: boolean; onInteract?: InteractFn }) {
+  return (
+    <group>
+      <GroundFloorShell night={night} />
+      <AllDesks floor={1} />
+      <Rug position={[-5, 0.004, -1.75]} size={[6.6, 6.8]} color="#cbd5e1" border="#94a3b8" />
+      <PendantLamp position={[-6.5, 2.35, -1.75]} onInteract={onInteract} />
+      <PendantLamp position={[-3.5, 2.35, -1.75]} onInteract={onInteract} />
+      <ServerRack position={[-0.8, 0, -6.55]} onInteract={onInteract} />
+      <PottedPlant position={[-9.3, 0, -6.4]} scale={1.2} onInteract={onInteract} />
+      <PottedPlant position={[-9.2, 0, 2.4]} scale={1.1} onInteract={onInteract} />
+      <PottedPlant position={[-9.4, 0, 3.6]} scale={0.9} onInteract={onInteract} />
+
+      {/* Meeting room */}
+      <ConferenceMeetingTable position={[6, 0, -4.2]} onInteract={onInteract} />
+      <MeetingScreen position={[6, 1.7, -6.95]} />
+      <PendantLamp position={[6, 2.35, -4.2]} onInteract={onInteract} />
+
+      {/* Pantry */}
+      <CoffeeEspressoBar position={[8.3, 0, -0.55]} onInteract={onInteract} />
+      <HighTable position={[6, 0, 0.2]} />
+      <WaterCooler position={[9.6, 0, 3.2]} rotation={[0, -Math.PI / 2, 0]} onInteract={onInteract} />
+
+      {/* Lobby */}
+      <Rug position={[5.2, 0.004, 5.2]} size={[4.5, 3]} color="#e2d6c3" border="#b6a58b" />
+      <ReceptionDesk position={[7.2, 0, 5.0]} rotation={[0, Math.PI, 0]} onInteract={onInteract} />
+      <Sofa position={[2.45, 0, 5.4]} rotation={[0, Math.PI / 2, 0]} width={1.7} color="#0f766e" cushion="#14b8a6" onInteract={onInteract} />
+      <PottedPlant position={[2.3, 0, 6.5]} scale={0.9} onInteract={onInteract} />
+      <PottedPlant position={[9.4, 0, 6.4]} scale={1.2} onInteract={onInteract} />
+      <EntranceDoor position={[4.8, 0, 7]} onInteract={onInteract} />
+
+      <Staircase position={[-8.8, 0, 6.0]} />
+    </group>
+  );
+}
+
+function UpperFloor({ night, agents, onInteract }: { night: boolean; agents: Record<string, AgentState>; onInteract?: InteractFn }) {
+  const y = FLOOR2_Y;
+  return (
+    <group>
+      <UpperFloorShell night={night} />
+      <AllDesks floor={2} />
+      <Rug position={[-4, y + 0.004, -2.85]} size={[6.4, 6.8]} color="#e7e0d6" border="#c4b8a6" />
+      <WallWhiteboard position={[-9.97, y + 1.6, -3]} rotation={[0, Math.PI / 2, 0]} onInteract={onInteract} />
+      <WallBookshelf position={[-8, y + 1.0, -6.85]} onInteract={onInteract} />
+
+      {/* TV lounge */}
+      <Rug position={[5.5, y + 0.004, -3.8]} size={[6, 4]} color="#f5efe6" border="#d6c7ae" />
+      <LoungeTV position={[5.5, y, -6.95]} agents={agents} onInteract={onInteract} />
+      <Sofa position={[5.5, y, -2.35]} rotation={[0, Math.PI, 0]} width={2.6} color="#475569" cushion="#64748b" onInteract={onInteract} />
+      <CoffeeTable position={[5.5, y, -4.0]} />
+      <BeanBag position={[3.2, y, -4.6]} color="#f59e0b" onInteract={onInteract} />
+      <BeanBag position={[7.8, y, -4.6]} color="#e11d48" onInteract={onInteract} />
+      <ArcadeMachine position={[9.4, y, -5.6]} rotation={[0, -Math.PI / 2, 0]} onInteract={onInteract} />
+      <PottedPlant position={[1.6, y, -6.4]} scale={1.1} onInteract={onInteract} />
+      <PottedPlant position={[9.4, y, 1.0]} scale={1.0} onInteract={onInteract} />
+
+      {/* Game corner */}
+      <PingPongTable position={[-3, y, 4.2]} onInteract={onInteract} />
+      <PottedPlant position={[0.5, y, 6.4]} scale={1.0} onInteract={onInteract} />
+      <PottedPlant position={[-7.3, y, 6.4]} scale={0.9} onInteract={onInteract} />
+
+      {/* Rooftop terrace */}
+      <Parasol position={[8.6, y, 3.0]} />
+      <LoungeChair position={[7.9, y, 3.2]} />
+      <LoungeChair position={[9.3, y, 3.2]} />
+      <PlanterBox position={[9.65, y, 5.3]} size={[0.5, 2.2]} />
+      <PlanterBox position={[5.2, y, 2.0]} size={[1.8, 0.5]} />
+      {([
+        [4.15, 1.75],
+        [9.85, 6.85],
+      ] as [number, number][]).map(([x, z]) => (
+        <mesh key={x} position={[x, y + 1.35, z]} castShadow>
+          <cylinderGeometry args={[0.03, 0.03, 2.7, 8]} />
+          <meshStandardMaterial color="#1f2937" />
+        </mesh>
+      ))}
+      <StringLights from={[4.15, y + 2.65, 1.75]} to={[9.85, y + 2.65, 6.85]} night={night} />
+      {night && <pointLight position={[7, y + 2.2, 4.3]} intensity={3} distance={6} color="#fcd34d" />}
+    </group>
+  );
+}
 
 export function Scene({
   children,
+  agents,
   timeOfDay = "day",
+  viewFloor,
+  focus,
   onInteractProp,
 }: {
   children: ReactNode;
+  agents: Record<string, AgentState>;
   timeOfDay?: "day" | "night";
-  onInteractProp?: (title: string, message: string, icon: string) => void;
+  viewFloor: ViewFloor;
+  focus: CameraFocus;
+  onInteractProp?: InteractFn;
 }) {
-  const isDay = timeOfDay === "day";
+  const night = timeOfDay === "night";
 
   return (
     <Canvas
-      shadows
-      camera={{ position: [14, 12, 16], fov: 44 }}
+      shadows="percentage"
+      dpr={[1, 2]}
+      camera={{ position: VIEW_PRESETS.all.position, fov: 42, near: 0.1, far: 500 }}
+      gl={{ antialias: true }}
       style={{ width: "100%", height: "100%" }}
     >
-      <PerspectiveCamera makeDefault position={[14, 12, 16]} fov={44} />
-
-      {/* OrbitControls: 360 smooth exploration of 2-floor agency */}
       <OrbitControls
         makeDefault
         enableDamping
-        dampingFactor={0.06}
-        minDistance={5}
-        maxDistance={32}
-        maxPolarAngle={Math.PI / 2.08}
-        target={[0, 2.0, 0]}
+        dampingFactor={0.08}
+        minDistance={3.5}
+        maxDistance={42}
+        maxPolarAngle={Math.PI / 2.1}
+        target={VIEW_PRESETS.all.target}
       />
+      <CameraRig focus={focus} />
+      <Lighting night={night} />
 
-      {/* --- DYNAMIC DAY / NIGHT LIGHTING --- */}
-      {/* Ambient Light: Clear natural daylight or warm inviting golden-ivory nighttime office interior */}
-      <ambientLight
-        intensity={isDay ? 1.25 : 1.4}
-        color={isDay ? "#f8fafc" : "#fef3c7"}
-      />
+      <Grounds night={night} />
+      {([
+        [-14, -5, 1.2],
+        [-13.5, 4, 1.0],
+        [-4, -10.5, 1.1],
+        [6, -11, 1.3],
+        [14, -9, 1.0],
+        [-12.5, 10, 0.9],
+      ] as Vec3[]).map(([x, z, s]) => (
+        <Tree key={`${x}-${z}`} position={[x, -0.2, z]} scale={s} />
+      ))}
 
-      {/* Main Key Light: Sun beam in daytime or ceiling downlights at night */}
-      <directionalLight
-        position={isDay ? [12, 18, 10] : [2, 16, 4]}
-        intensity={isDay ? 2.4 : 1.9}
-        color={isDay ? "#fffbeb" : "#fffbeb"}
-        castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
-        shadow-camera-near={0.5}
-        shadow-camera-far={45}
-        shadow-camera-left={-16}
-        shadow-camera-right={16}
-        shadow-camera-top={16}
-        shadow-camera-bottom={-16}
-        shadow-bias={-0.0001}
-      />
+      <GroundFloor night={night} onInteract={onInteractProp} />
+      {viewFloor !== 1 && <UpperFloor night={night} agents={agents} onInteract={onInteractProp} />}
 
-      {/* Window Lighting: Daylight sunbeam or soft cinematic moonlight rim */}
-      <directionalLight
-        position={[6, 8, -10]}
-        intensity={isDay ? 1.8 : 1.3}
-        color={isDay ? "#bae6fd" : "#93c5fd"}
-      />
-
-      {/* Night Interior Ceiling Fill Lights: Ensures all 2 floors are clearly visible, warm & cozy */}
-      {!isDay && (
-        <>
-          {/* Floor 1 Core Workstations Overhead Light */}
-          <pointLight position={[0, 3.8, 1.0]} intensity={1.8} distance={18} color="#fef08a" />
-          {/* Floor 2 Mezzanine Workstations Overhead Light */}
-          <pointLight position={[-5.5, 6.8, -3.2]} intensity={1.8} distance={15} color="#fef3c7" />
-          {/* Break Lounge & Entrance Warm Glow */}
-          <pointLight position={[6.5, 3.5, 3.5]} intensity={1.4} distance={14} color="#fde68a" />
-          {/* Conference Meeting Area Warm Glow */}
-          <pointLight position={[6.0, 3.5, -1.8]} intensity={1.4} distance={14} color="#fef3c7" />
-        </>
-      )}
-
-      {/* --- FLOOR 1 (Ground Floor - Parquet & Dark Slate) --- */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0.5]} receiveShadow>
-        <planeGeometry args={[22, 16]} />
-        <meshStandardMaterial color="#241a15" roughness={0.45} metalness={0.05} />
-      </mesh>
-
-      {/* Ground Floor Workstation Rug */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 1.0]} receiveShadow>
-        <planeGeometry args={[12, 11]} />
-        <meshStandardMaterial color="#1e293b" roughness={0.9} />
-      </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.006, 1.0]} receiveShadow>
-        <planeGeometry args={[11.6, 10.6]} />
-        <meshStandardMaterial color="#0f172a" roughness={0.95} />
-      </mesh>
-
-      {/* --- FLOOR 2: MEZZANINE SLAB & STRUCTURAL COLUMNS --- */}
-      {/* Mezzanine Concrete / Hardwood Slab (y = 3.58) */}
-      <mesh position={[-5.5, 3.58, -3.25]} castShadow receiveShadow>
-        <boxGeometry args={[11.0, 0.16, 8.5]} />
-        <meshStandardMaterial color="#1c1917" roughness={0.5} metalness={0.1} />
-      </mesh>
-      {/* Mezzanine Floor Surface Trim */}
-      <mesh position={[-5.5, 3.67, -3.25]} receiveShadow>
-        <boxGeometry args={[10.9, 0.02, 8.4]} />
-        <meshStandardMaterial color="#2d221b" roughness={0.4} />
-      </mesh>
-      {/* Mezzanine Work Area Rug */}
-      <mesh position={[-6.0, 3.685, -3.2]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[8.5, 6.5]} />
-        <meshStandardMaterial color="#1e293b" roughness={0.95} />
-      </mesh>
-
-      {/* Structural Support Columns (From Floor 1 to Floor 2 ceiling) */}
-      <mesh position={[-0.2, 3.6, 0.9]} castShadow>
-        <cylinderGeometry args={[0.12, 0.12, 7.2, 16]} />
-        <meshStandardMaterial color="#09090b" metalness={0.9} roughness={0.2} />
-      </mesh>
-      <mesh position={[-0.2, 3.6, -7.3]} castShadow>
-        <cylinderGeometry args={[0.12, 0.12, 7.2, 16]} />
-        <meshStandardMaterial color="#09090b" metalness={0.9} roughness={0.2} />
-      </mesh>
-
-      {/* Mezzanine Glass Balustrade Overlooking Floor 1 */}
-      <MezzanineGlassRailing onInteract={onInteractProp} />
-
-      {/* Floating Staircase Connecting Floor 1 to Floor 2 */}
-      <ArchitecturalStaircase position={[-9.2, 0, 3.6]} onInteract={onInteractProp} />
-
-      {/* --- WALLS WITH CARVED PANORAMIC DOUBLE-HEIGHT WINDOW --- */}
-      {/* Left Wall (Double-Height: 22 units wide, 7.5 units high) */}
-      <mesh position={[-11, 3.75, 0.5]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
-        <planeGeometry args={[16, 7.5]} />
-        <meshStandardMaterial color="#27272a" roughness={0.75} />
-      </mesh>
-      {/* Left Wall Baseboard */}
-      <mesh position={[-10.98, 0.1, 0.5]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
-        <boxGeometry args={[16, 0.2, 0.04]} />
-        <meshStandardMaterial color="#09090b" />
-      </mesh>
-
-      {/* Right Wall (Double-Height) */}
-      <mesh position={[11, 3.75, 0.5]} rotation={[0, -Math.PI / 2, 0]} receiveShadow>
-        <planeGeometry args={[16, 7.5]} />
-        <meshStandardMaterial color="#27272a" roughness={0.75} />
-      </mesh>
-      <mesh position={[10.98, 0.1, 0.5]} rotation={[0, -Math.PI / 2, 0]} receiveShadow>
-        <boxGeometry args={[16, 0.2, 0.04]} />
-        <meshStandardMaterial color="#09090b" />
-      </mesh>
-
-      {/* Back Wall Section Left of Window (x = -11 to x = 0.5, width = 11.5) */}
-      <mesh position={[-5.25, 3.75, -7.5]} receiveShadow>
-        <planeGeometry args={[11.5, 7.5]} />
-        <meshStandardMaterial color="#18181b" roughness={0.8} />
-      </mesh>
-      {/* Back Wall Section Right of Window (x = 10.5 to x = 11.0, width = 0.5) */}
-      <mesh position={[10.75, 3.75, -7.5]} receiveShadow>
-        <planeGeometry args={[0.5, 7.5]} />
-        <meshStandardMaterial color="#18181b" roughness={0.8} />
-      </mesh>
-      {/* Back Wall Header above Window (y = 6.9 to 7.5, height = 0.6) */}
-      <mesh position={[5.5, 7.2, -7.5]} receiveShadow>
-        <planeGeometry args={[10.0, 0.6]} />
-        <meshStandardMaterial color="#18181b" roughness={0.8} />
-      </mesh>
-      {/* Back Wall Sill below Window (y = 0 to 0.7, height = 0.7) */}
-      <mesh position={[5.5, 0.35, -7.5]} receiveShadow>
-        <planeGeometry args={[10.0, 0.7]} />
-        <meshStandardMaterial color="#18181b" roughness={0.8} />
-      </mesh>
-
-      {/* --- GIANT DOUBLE-HEIGHT PANORAMIC WINDOW --- */}
-      <group
-        position={[5.5, 3.8, -7.48]}
-        onPointerOver={(e) => {
-          e.stopPropagation();
-          document.body.style.cursor = "pointer";
-        }}
-        onPointerOut={() => {
-          document.body.style.cursor = "auto";
-        }}
-        onClick={(e) => {
-          e.stopPropagation();
-          onInteractProp?.(
-            isDay ? "Pemandangan Siang Hari" : "Pemandangan Langit Malam",
-            isDay
-              ? "Matahari pagi bersinar cerah di atas kota, energi tim penuh untuk coding!"
-              : "Bulan purnama & ribuan bintang di langit malam menemani kerja keras seluruh agensi.",
-            isDay ? "☀️" : "🌕"
-          );
-        }}
-      >
-        {/* Outer Heavy Steel Frame */}
-        <mesh position={[0, 3.12, 0]} castShadow>
-          <boxGeometry args={[10.0, 0.16, 0.2]} />
-          <meshStandardMaterial color="#09090b" metalness={0.9} />
-        </mesh>
-        <mesh position={[0, -3.12, 0.08]} castShadow>
-          <boxGeometry args={[10.2, 0.18, 0.32]} />
-          <meshStandardMaterial color="#09090b" metalness={0.9} />
-        </mesh>
-        <mesh position={[-4.95, 0, 0]} castShadow>
-          <boxGeometry args={[0.16, 6.2, 0.2]} />
-          <meshStandardMaterial color="#09090b" metalness={0.9} />
-        </mesh>
-        <mesh position={[4.95, 0, 0]} castShadow>
-          <boxGeometry args={[0.16, 6.2, 0.2]} />
-          <meshStandardMaterial color="#09090b" metalness={0.9} />
-        </mesh>
-
-        {/* Architectural Glass Mullions & Transoms (4x3 Modern Grid) */}
-        {[-2.5, 0, 2.5].map((mx) => (
-          <mesh key={mx} position={[mx, 0, 0.04]}>
-            <boxGeometry args={[0.06, 6.2, 0.08]} />
-            <meshStandardMaterial color="#09090b" metalness={0.9} />
-          </mesh>
-        ))}
-        {[-1.0, 1.0].map((my) => (
-          <mesh key={my} position={[0, my, 0.04]}>
-            <boxGeometry args={[9.8, 0.06, 0.08]} />
-            <meshStandardMaterial color="#09090b" metalness={0.9} />
-          </mesh>
-        ))}
-
-        {/* Clear Double-Height Glass Pane */}
-        <mesh position={[0, 0, 0.02]}>
-          <planeGeometry args={[9.8, 6.1]} />
-          <meshStandardMaterial
-            color={isDay ? "#bae6fd" : "#93c5fd"}
-            transparent
-            opacity={0.12}
-            roughness={0.05}
-            metalness={0.2}
-          />
-        </mesh>
-
-        {/* === OUTSIDE SKY & CELESTIAL BODIES (DAY VS NIGHT) === */}
-        {/* Sky Backdrop */}
-        <mesh position={[0, 0, -2.2]}>
-          <planeGeometry args={[26, 14]} />
-          <meshBasicMaterial color={isDay ? "#38bdf8" : "#020617"} />
-        </mesh>
-
-        {/* ☀️ DAY MODE: GOLDEN RADIANT SUN & CLOUDS */}
-        {isDay && (
-          <group position={[1.5, 1.4, -1.4]}>
-            {/* Sun Sphere */}
-            <mesh>
-              <sphereGeometry args={[0.85, 32, 32]} />
-              <meshBasicMaterial color="#fef08a" />
-            </mesh>
-            {/* Sun Glow Halo */}
-            <mesh position={[0, 0, -0.05]}>
-              <circleGeometry args={[2.4, 32]} />
-              <meshBasicMaterial color="#fed7aa" transparent opacity={0.35} />
-            </mesh>
-            <mesh position={[0, 0, -0.08]}>
-              <circleGeometry args={[4.0, 32]} />
-              <meshBasicMaterial color="#fef08a" transparent opacity={0.15} />
-            </mesh>
-            {/* Warm sunlight beam pouring into studio */}
-            <pointLight color="#fef08a" intensity={4.5} distance={22} />
-
-            {/* Drifting Clouds */}
-            <group position={[-3.5, -0.8, -0.4]}>
-              <mesh position={[0, 0, 0]}>
-                <sphereGeometry args={[0.45, 16, 16]} />
-                <meshBasicMaterial color="#ffffff" transparent opacity={0.8} />
-              </mesh>
-              <mesh position={[0.5, -0.1, 0]}>
-                <sphereGeometry args={[0.35, 16, 16]} />
-                <meshBasicMaterial color="#ffffff" transparent opacity={0.75} />
-              </mesh>
-              <mesh position={[-0.4, -0.1, 0]}>
-                <sphereGeometry args={[0.35, 16, 16]} />
-                <meshBasicMaterial color="#ffffff" transparent opacity={0.75} />
-              </mesh>
-            </group>
-            <group position={[2.8, -1.4, -0.4]}>
-              <mesh position={[0, 0, 0]}>
-                <sphereGeometry args={[0.5, 16, 16]} />
-                <meshBasicMaterial color="#ffffff" transparent opacity={0.8} />
-              </mesh>
-              <mesh position={[0.6, -0.1, 0]}>
-                <sphereGeometry args={[0.38, 16, 16]} />
-                <meshBasicMaterial color="#ffffff" transparent opacity={0.75} />
-              </mesh>
-              <mesh position={[-0.5, -0.1, 0]}>
-                <sphereGeometry args={[0.38, 16, 16]} />
-                <meshBasicMaterial color="#ffffff" transparent opacity={0.75} />
-              </mesh>
-            </group>
-          </group>
-        )}
-
-        {/* 🌙 NIGHT MODE: GLOWING MOON & 60+ STARS */}
-        {!isDay && (
-          <>
-            <group position={[1.5, 1.4, -1.4]}>
-              {/* Moon Sphere */}
-              <mesh>
-                <sphereGeometry args={[0.85, 32, 32]} />
-                <meshStandardMaterial
-                  color="#fffbeb"
-                  emissive="#fef08a"
-                  emissiveIntensity={3.8}
-                  roughness={0.15}
-                />
-              </mesh>
-              {/* Craters */}
-              <mesh position={[-0.2, 0.15, 0.8]} rotation={[0, 0, 0.4]}>
-                <circleGeometry args={[0.18, 16]} />
-                <meshBasicMaterial color="#fde047" transparent opacity={0.35} />
-              </mesh>
-              <mesh position={[0.26, -0.18, 0.78]}>
-                <circleGeometry args={[0.22, 16]} />
-                <meshBasicMaterial color="#facc15" transparent opacity={0.3} />
-              </mesh>
-              {/* Halo */}
-              <mesh position={[0, 0, -0.06]}>
-                <circleGeometry args={[1.8, 32]} />
-                <meshBasicMaterial color="#38bdf8" transparent opacity={0.32} />
-              </mesh>
-              <mesh position={[0, 0, -0.08]}>
-                <circleGeometry args={[2.8, 32]} />
-                <meshBasicMaterial color="#60a5fa" transparent opacity={0.14} />
-              </mesh>
-              <pointLight color="#bae6fd" intensity={4.5} distance={22} />
-            </group>
-
-            {/* Twinkling Night Stars */}
-            {[
-              [-4.2, 2.2, -1.8, 0.04],
-              [-3.6, 1.5, -1.8, 0.03],
-              [-3.0, 2.4, -1.8, 0.045],
-              [-2.4, 1.1, -1.8, 0.025],
-              [-1.8, 2.1, -1.8, 0.05],
-              [-1.1, 1.3, -1.8, 0.03],
-              [-0.4, 2.5, -1.8, 0.04],
-              [0.2, 1.8, -1.8, 0.035],
-              [0.8, 2.6, -1.8, 0.05],
-              [3.4, 2.3, -1.8, 0.04],
-              [4.1, 1.6, -1.8, 0.045],
-              [4.6, 2.5, -1.8, 0.035],
-              [-4.0, 0.5, -1.8, 0.03],
-              [-1.5, 0.6, -1.8, 0.035],
-              [3.8, 0.4, -1.8, 0.03],
-            ].map(([sx, sy, sz, radius], idx) => (
-              <mesh key={idx} position={[sx, sy, sz]}>
-                <sphereGeometry args={[radius, 8, 8]} />
-                <meshBasicMaterial color="#ffffff" />
-              </mesh>
-            ))}
-          </>
-        )}
-
-        {/* City Skyline Silhouettes */}
-        <group position={[0, -1.4, -1.0]}>
-          {/* Skyscraper 1 */}
-          <mesh position={[-3.8, 0.5, 0]}>
-            <boxGeometry args={[1.1, 2.8, 0.1]} />
-            <meshStandardMaterial color={isDay ? "#cbd5e1" : "#090d16"} roughness={0.7} />
-          </mesh>
-          <mesh position={[-3.8, 0.8, 0.06]}>
-            <planeGeometry args={[0.8, 1.8]} />
-            <meshBasicMaterial
-              color={isDay ? "#38bdf8" : "#fef08a"}
-              transparent
-              opacity={isDay ? 0.35 : 0.65}
-            />
-          </mesh>
-
-          {/* Skyscraper 2 with Antenna & Beacon */}
-          <mesh position={[-2.2, 1.0, 0]}>
-            <boxGeometry args={[1.3, 3.8, 0.1]} />
-            <meshStandardMaterial color={isDay ? "#94a3b8" : "#0b1329"} roughness={0.7} />
-          </mesh>
-          <mesh position={[-2.2, 1.1, 0.06]}>
-            <planeGeometry args={[1.0, 2.6]} />
-            <meshBasicMaterial
-              color={isDay ? "#bae6fd" : "#38bdf8"}
-              transparent
-              opacity={isDay ? 0.45 : 0.6}
-            />
-          </mesh>
-          <mesh position={[-2.2, 3.1, 0]}>
-            <cylinderGeometry args={[0.02, 0.02, 0.6, 6]} />
-            <meshBasicMaterial color="#ef4444" />
-          </mesh>
-
-          {/* Skyscraper 3 */}
-          <mesh position={[-0.5, 0.4, 0]}>
-            <boxGeometry args={[1.4, 2.5, 0.1]} />
-            <meshStandardMaterial color={isDay ? "#cbd5e1" : "#090d16"} roughness={0.7} />
-          </mesh>
-
-          {/* Skyscraper 4 */}
-          <mesh position={[1.4, 0.9, 0]}>
-            <boxGeometry args={[1.3, 3.4, 0.1]} />
-            <meshStandardMaterial color={isDay ? "#94a3b8" : "#0f172a"} roughness={0.7} />
-          </mesh>
-          <mesh position={[1.4, 1.0, 0.06]}>
-            <planeGeometry args={[0.9, 2.2]} />
-            <meshBasicMaterial
-              color={isDay ? "#38bdf8" : "#fef08a"}
-              transparent
-              opacity={isDay ? 0.35 : 0.6}
-            />
-          </mesh>
-
-          {/* Skyscraper 5 */}
-          <mesh position={[3.2, 0.6, 0]}>
-            <boxGeometry args={[1.2, 2.9, 0.1]} />
-            <meshStandardMaterial color={isDay ? "#cbd5e1" : "#090d16"} roughness={0.7} />
-          </mesh>
-
-          {/* Skyscraper 6 */}
-          <mesh position={[4.6, 1.1, 0]}>
-            <boxGeometry args={[1.2, 4.0, 0.1]} />
-            <meshStandardMaterial color={isDay ? "#94a3b8" : "#0b1329"} roughness={0.7} />
-          </mesh>
-          <mesh position={[4.6, 1.2, 0.06]}>
-            <planeGeometry args={[0.8, 2.6]} />
-            <meshBasicMaterial
-              color={isDay ? "#bae6fd" : "#38bdf8"}
-              transparent
-              opacity={isDay ? 0.45 : 0.55}
-            />
-          </mesh>
-        </group>
-      </group>
-
-      {/* --- PROPS & ACCENTS ACROSS 2 FLOORS --- */}
-      {/* Floor 2: Large Strategic Whiteboard Kanban */}
-      <WallWhiteboard
-        position={[-10.95, 5.2, -3.5]}
-        rotation={[0, Math.PI / 2, 0]}
-        onInteract={onInteractProp}
-      />
-
-      {/* Floor 2: Architecture Bookshelf & Archives */}
-      <WallBookshelf position={[-6.0, 5.2, -7.38]} onInteract={onInteractProp} />
-
-      {/* Floor 1: Conference & Sprint Review Meeting Table */}
-      <ConferenceMeetingTable position={[6.0, 0, -1.8]} onInteract={onInteractProp} />
-
-      {/* Floor 1: Break Lounge Corner (Front-Right) */}
-      <BreakLoungeArea position={[7.0, 0, 4.5]} onInteract={onInteractProp} />
-
-      {/* Floor 1: Studio Espresso Machine Bar */}
-      <CoffeeEspressoBar position={[4.8, 0, 5.2]} onInteract={onInteractProp} />
-
-      {/* Floor 1: HQ Entrance & Freelancer Door (Right Wall) */}
-      <EntranceDoor position={[10.95, 1.5, 1.0]} onInteract={onInteractProp} />
-
-      {/* Indoor Potted Plants */}
-      <PottedPlant position={[-10.0, 0, -6.5]} scale={1.3} onInteract={onInteractProp} />
-      <PottedPlant position={[9.8, 0, -6.5]} scale={1.2} onInteract={onInteractProp} />
-      <PottedPlant position={[-10.0, 0, 6.2]} scale={1.1} onInteract={onInteractProp} />
-      <PottedPlant position={[-0.8, 3.6, -7.0]} scale={1.0} onInteract={onInteractProp} />
-
-      {/* Pendant Lights over Floor 1 Engineering Desks */}
-      <PendantLamp position={[-3.0, 4.8, 1.0]} onInteract={onInteractProp} />
-      <PendantLamp position={[3.0, 4.8, 1.0]} onInteract={onInteractProp} />
-
-      {/* Pendant Lights over Floor 2 Mezzanine Desks */}
-      <PendantLamp position={[-6.0, 6.8, -3.2]} onInteract={onInteractProp} />
-
-      {/* Active Scene Content (Desks, Avatars, etc.) */}
       {children}
     </Canvas>
   );

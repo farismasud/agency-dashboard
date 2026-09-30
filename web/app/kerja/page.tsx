@@ -242,9 +242,9 @@ export default function KerjaPage() {
             <span className="text-zinc-600">|</span>
             <span>🔍 <strong className="text-zinc-200">Scroll</strong>: Zoom</span>
             <span className="text-zinc-600">|</span>
-            <span>✨ <strong className="text-zinc-200">Klik Agen</strong>: Dossier</span>
+            <span>✨ <strong className="text-zinc-200">Klik Agen</strong>: Fokus + Dossier</span>
             <span className="text-zinc-600">|</span>
-            <span>🛋️ <strong className="text-zinc-200">Klik Objek / Jendela</strong>: Interaksi</span>
+            <span>📺 <strong className="text-zinc-200">Klik TV / Objek</strong>: Interaksi</span>
           </div>
         </div>
       </div>

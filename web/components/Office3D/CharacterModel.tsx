@@ -5,30 +5,30 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import type { AgentState } from "@/lib/types";
-import { ROLE_RING_COLOR, DEFAULT_RING_COLOR } from "./layout";
+import { ROLE_RING_COLOR, DEFAULT_RING_COLOR, floorY } from "./layout";
 import {
-  getRandomOfficeSpots,
+  buildPath,
+  claimSpot,
   getDeskSpot,
   getRandomDialogue,
+  pickNextSpot,
+  type NavWaypoint,
   type OfficeSpot,
 } from "./AgentBehavior";
 
 const WALK_SPEED = 2.4; // world units per second
 
+export type ViewFloor = "all" | 1 | 2;
+
 export interface LiveAgentStatus {
   x: number;
   z: number;
-  y?: number;
+  y: number;
   rotationY: number;
   isWalking: boolean;
   bubbleText: string;
-}
-
-export interface NavWaypoint {
-  x: number;
-  y: number;
-  z: number;
-  isStair?: boolean;
+  spotLabel: string;
+  hidden: boolean;
 }
 
 export interface PersonLookConfig {
@@ -299,7 +299,7 @@ function buildPerson(cfg: PersonLookConfig): PersonBones {
   // Shoulders, Elbows, Hands (Articulated Joints)
   const sh: [THREE.Group, THREE.Group] = [new THREE.Group(), new THREE.Group()];
   const el: [THREE.Group, THREE.Group] = [new THREE.Group(), new THREE.Group()];
-  const handMeshes: [THREE.Mesh, THREE.Mesh] = [null as any, null as any];
+  const handMeshes: THREE.Mesh[] = [];
 
   for (let i = 0; i < 2; i++) {
     const s = i === 0 ? -1 : 1;
@@ -321,7 +321,7 @@ function buildPerson(cfg: PersonLookConfig): PersonBones {
     h.position.y = -0.26;
     h.scale.set(0.9, 1.1, 0.7);
     el[i].add(h);
-    handMeshes[i] = h;
+    handMeshes.push(h);
   }
 
   // Coffee mug held in right hand (index 1)
@@ -356,7 +356,7 @@ function buildPerson(cfg: PersonLookConfig): PersonBones {
     knee[i].add(foot);
   }
 
-  return { root, hips, spine, head, sh, el, hand: handMeshes, hip, knee, mug };
+  return { root, hips, spine, head, sh, el, hand: [handMeshes[0], handMeshes[1]], hip, knee, mug };
 }
 
 export interface PoseData {
@@ -578,51 +578,105 @@ function whiteboardPose(t: number): PoseData {
   };
 }
 
-// Architectural Staircase Navigation: routes character across floors through physical stairs
-export function buildPathToSpot(
-  currentPos: { x: number; y: number; z: number },
-  targetSpot: OfficeSpot
-): NavWaypoint[] {
-  const currentFloor: 1 | 2 = currentPos.y > 1.8 ? 2 : 1;
-  const targetFloor = targetSpot.floor;
+function tvPose(t: number, seed: number): PoseData {
+  // Every so often the whole sofa reacts to the match on screen.
+  const cheer = Math.sin(t * 0.45 + seed) > 0.92;
+  return {
+    ...sofaPose(t),
+    spineX: cheer ? 0.12 : -0.2,
+    headX: cheer ? -0.2 : -0.04,
+    headY: 0,
+    rShX: cheer ? -2.6 : -0.45,
+    rShZ: cheer ? -0.1 : -0.25,
+    rElX: cheer ? -0.2 : -0.95,
+  };
+}
 
-  const waypoints: NavWaypoint[] = [];
+function gamePose(t: number, seed: number): PoseData {
+  const swing = Math.sin(t * 6 + seed);
+  return {
+    hipsY: 0.86,
+    lHipX: -0.12,
+    rHipX: -0.12,
+    lKneeX: 0.2,
+    rKneeX: 0.2,
+    spineX: 0.18,
+    headX: 0.05,
+    lShX: -0.9,
+    lShZ: 0.2,
+    lElX: -0.9,
+    rShX: -0.9 + swing * 0.4,
+    rShZ: -0.3 + swing * 0.2,
+    rElX: -0.7,
+  };
+}
 
-  if (currentFloor === 1 && targetFloor === 2) {
-    // === NAIK TANGGA (Lantai 1 -> Lantai 2) ===
-    waypoints.push({ x: -9.2, y: 0.0, z: 4.4 });
-    waypoints.push({ x: -9.2, y: 0.15, z: 3.6, isStair: true });
-    waypoints.push({ x: -9.2, y: 1.15, z: 2.4, isStair: true });
-    waypoints.push({ x: -9.2, y: 2.18, z: 1.2, isStair: true });
-    waypoints.push({ x: -9.2, y: 3.46, z: -0.3, isStair: true });
-    waypoints.push({ x: -8.5, y: 3.6, z: 0.2 });
-    waypoints.push({ x: targetSpot.x, y: 3.6, z: targetSpot.z });
-  } else if (currentFloor === 2 && targetFloor === 1) {
-    // === TURUN TANGGA (Lantai 2 -> Lantai 1) ===
-    waypoints.push({ x: -8.5, y: 3.6, z: 0.2 });
-    waypoints.push({ x: -9.2, y: 3.46, z: -0.3, isStair: true });
-    waypoints.push({ x: -9.2, y: 2.18, z: 1.2, isStair: true });
-    waypoints.push({ x: -9.2, y: 1.15, z: 2.4, isStair: true });
-    waypoints.push({ x: -9.2, y: 0.15, z: 3.6, isStair: true });
-    waypoints.push({ x: -9.2, y: 0.0, z: 4.4 });
-    waypoints.push({ x: targetSpot.x, y: 0.0, z: targetSpot.z });
-  } else {
-    // === SAME FLOOR NAVIGATION ===
-    const walkY = targetFloor === 2 ? 3.6 : 0.0;
-    waypoints.push({ x: targetSpot.x, y: walkY, z: targetSpot.z });
+function talkPose(t: number, seed: number): PoseData {
+  const gesture = Math.sin(t * 2.2 + seed);
+  return {
+    hipsY: 0.9,
+    headX: 0.04,
+    headY: Math.sin(t * 0.6 + seed) * 0.15,
+    lShX: 0.05,
+    lElX: -0.2,
+    rShX: -0.5 + gesture * 0.15,
+    rShZ: -0.2,
+    rElX: -1.2 + gesture * 0.2,
+  };
+}
+
+function bookPose(t: number): PoseData {
+  return {
+    hipsY: 0.9,
+    headX: 0.35,
+    headY: Math.sin(t * 0.4) * 0.1,
+    lShX: -0.6,
+    lShZ: 0.15,
+    lElX: -1.3,
+    rShX: -0.6,
+    rShZ: -0.15,
+    rElX: -1.3,
+  };
+}
+
+function poseForSpot(spot: OfficeSpot, working: boolean, t: number, seed: number): PoseData {
+  switch (spot.category) {
+    case "desk":
+      return working ? typePose(t, seed) : readPose(t, seed);
+    case "meeting":
+      return meetingPose(t, seed);
+    case "sofa":
+      return sofaPose(t);
+    case "tv":
+      return tvPose(t, seed);
+    case "coffee":
+    case "waterCooler":
+      return coffeePose(t);
+    case "balcony":
+    case "window":
+      return balconyPose(t);
+    case "whiteboard":
+    case "server":
+      return whiteboardPose(t);
+    case "game":
+      return gamePose(t, seed);
+    case "bookshelf":
+      return bookPose(t);
+    default:
+      return talkPose(t, seed);
   }
-
-  return waypoints;
 }
 
 export function CharacterModel({
   agent,
   onSelect,
   livePositionsRef,
+  viewFloor,
 }: {
   agent: AgentState;
   onSelect?: (agent: AgentState) => void;
   livePositionsRef?: React.MutableRefObject<Record<string, LiveAgentStatus>>;
+  viewFloor: ViewFloor;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const ringRef = useRef<THREE.Mesh>(null);
@@ -633,247 +687,173 @@ export function CharacterModel({
   const working = agent.status === "working";
   const lookConfig = ROLE_LOOKS[role] ?? ROLE_LOOKS.dev;
 
-  // Build procedural cute character (instantly in memory, zero GLTF loading!)
   const bones = useMemo(() => buildPerson(lookConfig), [lookConfig]);
 
   const currentSpotRef = useRef<OfficeSpot>(getDeskSpot(role));
   const pathQueueRef = useRef<NavWaypoint[]>([]);
   const currentDialogue = useRef<string>(agent.last_action || "Fokus kerja...");
-  const nextChangeTime = useRef<number>(performance.now() + 8000 + Math.random() * 10000);
+  const nextChangeTime = useRef<number>(0); // set on mount
   const walkPhase = useRef<number>(0);
-  const randomSeed = useRef<number>(Math.random() * 100);
+  const randomSeed = useRef<number>(0);
 
-  // Set initial position onto desk chair
+  // Queue a walk to `spot`. Any leg already in progress is finished first so the
+  // character always leaves from a known spot and stays on the corridor graph.
+  const goTo = (spot: OfficeSpot) => {
+    const from = currentSpotRef.current;
+    if (from.id === spot.id) return;
+    pathQueueRef.current = [...pathQueueRef.current, ...buildPath(from, spot)];
+    currentSpotRef.current = spot;
+    claimSpot(role, spot);
+  };
+
   useLayoutEffect(() => {
     if (!groupRef.current) return;
-    const initialSpot = getDeskSpot(role);
-    const floorY = initialSpot.floor === 2 ? 3.6 : 0.0;
-    groupRef.current.position.set(initialSpot.x, floorY, initialSpot.z);
-    groupRef.current.rotation.y = initialSpot.faceAngle;
-    currentSpotRef.current = initialSpot;
+    const desk = getDeskSpot(role);
+    groupRef.current.position.set(desk.x, floorY(desk.floor), desk.z);
+    groupRef.current.rotation.y = desk.faceAngle;
+    currentSpotRef.current = desk;
     pathQueueRef.current = [];
+    claimSpot(role, desk);
+    nextChangeTime.current = performance.now() + 6000 + Math.random() * 10000;
+    randomSeed.current = Math.random() * 100;
   }, [role]);
 
-  // When live events arrive from backend, prioritize own desk via realistic path
+  // A live event from the backend pulls a working agent back to their desk.
   useEffect(() => {
-    if (agent.last_action) {
-      currentDialogue.current = agent.last_action;
-      if (working) {
-        const deskSpot = getDeskSpot(role);
-        currentSpotRef.current = deskSpot;
-        if (groupRef.current) {
-          pathQueueRef.current = buildPathToSpot(groupRef.current.position, deskSpot);
-        }
-        nextChangeTime.current = performance.now() + 18000;
-      }
-    }
+    if (!agent.last_action) return;
+    currentDialogue.current = agent.last_action;
+    if (!working) return;
+    goTo(getDeskSpot(role));
+    nextChangeTime.current = performance.now() + 18000;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agent.last_action, role, working]);
 
   useEffect(() => {
-    if (hovered) {
-      document.body.style.cursor = "pointer";
-      return () => {
-        document.body.style.cursor = "auto";
-      };
-    }
+    if (!hovered) return;
+    document.body.style.cursor = "pointer";
+    return () => {
+      document.body.style.cursor = "auto";
+    };
   }, [hovered]);
 
   useFrame((_, rawDelta) => {
-    if (!groupRef.current) return;
+    const group = groupRef.current;
+    if (!group) return;
 
-    // Clamp delta to protect against tab lag or frame drops
     const delta = Math.min(rawDelta, 0.08);
     const now = performance.now();
     const timeSec = now / 1000;
 
-    // Pick new random spot across 2-floor office
-    if (now > nextChangeTime.current) {
+    if (now > nextChangeTime.current && pathQueueRef.current.length === 0) {
       nextChangeTime.current = now + 12000 + Math.random() * 16000;
-
-      const spots = getRandomOfficeSpots(role);
-      let chosenSpot: OfficeSpot;
-      if (Math.random() < 0.40) {
-        chosenSpot = getDeskSpot(role);
-      } else {
-        const otherSpots = spots.filter((s) => s.id !== currentSpotRef.current.id);
-        chosenSpot = otherSpots[Math.floor(Math.random() * otherSpots.length)] || getDeskSpot(role);
-      }
-
-      currentSpotRef.current = chosenSpot;
-      currentDialogue.current = agent.last_action || getRandomDialogue(role, chosenSpot.category);
-      pathQueueRef.current = buildPathToSpot(groupRef.current.position, chosenSpot);
+      const next = pickNextSpot(role, working, currentSpotRef.current);
+      currentDialogue.current =
+        next.category === "desk" && agent.last_action
+          ? agent.last_action
+          : getRandomDialogue(role, next.talkTo ?? next.category);
+      goTo(next);
     }
 
-    const currentX = groupRef.current.position.x;
-    const currentY = groupRef.current.position.y;
-    const currentZ = groupRef.current.position.z;
     const targetSpot = currentSpotRef.current;
+    const isWalking = pathQueueRef.current.length > 0;
 
-    let isWalking = false;
-
-    if (pathQueueRef.current.length > 0) {
-      isWalking = true;
+    if (isWalking) {
       const wp = pathQueueRef.current[0];
-      const dx = wp.x - currentX;
-      const dy = wp.y - currentY;
-      const dz = wp.z - currentZ;
-
-      // Update walk animation phase
+      const dx = wp.x - group.position.x;
+      const dy = wp.y - group.position.y;
+      const dz = wp.z - group.position.z;
       walkPhase.current += delta * 9.5;
 
       if (wp.isStair) {
-        // --- PHYSICAL STAIR CLIMBING & DESCENDING ---
         const dist3D = Math.hypot(dx, dy, dz);
-        const stairSpeed = WALK_SPEED * 0.9;
-        const step = Math.min(dist3D, stairSpeed * delta);
-
+        const step = Math.min(dist3D, WALK_SPEED * 0.9 * delta);
         if (dist3D > 0.001) {
-          groupRef.current.position.x += (dx / dist3D) * step;
-          groupRef.current.position.y += (dy / dist3D) * step;
-          groupRef.current.position.z += (dz / dist3D) * step;
+          group.position.x += (dx / dist3D) * step;
+          group.position.y += (dy / dist3D) * step;
+          group.position.z += (dz / dist3D) * step;
         }
-
         const climbingUp = dy >= 0;
-        const stairHeading = climbingUp ? Math.PI : 0;
-        groupRef.current.rotation.y = lerpAngle(
-          groupRef.current.rotation.y,
-          stairHeading,
-          delta * 10
-        );
-
-        // Apply organic stair walk pose
+        group.rotation.y = lerpAngle(group.rotation.y, climbingUp ? Math.PI : 0, delta * 10);
         applyPose(bones, walkPose(walkPhase.current, true, climbingUp), delta);
-        bones.mug.visible = false;
-
-        if (dist3D < 0.18) {
-          pathQueueRef.current.shift();
-        }
+        if (dist3D < 0.12) pathQueueRef.current.shift();
       } else {
-        // --- FLAT FLOOR WALKING ---
         const distXZ = Math.hypot(dx, dz);
         const step = Math.min(distXZ, WALK_SPEED * delta);
-
         if (distXZ > 0.001) {
-          groupRef.current.position.x += (dx / distXZ) * step;
-          groupRef.current.position.z += (dz / distXZ) * step;
+          group.position.x += (dx / distXZ) * step;
+          group.position.z += (dz / distXZ) * step;
         }
-
-        groupRef.current.position.y = lerpVal(currentY, wp.y, delta * 10);
-
+        group.position.y = lerpVal(group.position.y, wp.y, delta * 10);
         if (distXZ > 0.05) {
-          const travelHeading = Math.atan2(dx, dz);
-          groupRef.current.rotation.y = lerpAngle(
-            groupRef.current.rotation.y,
-            travelHeading,
-            delta * 10
-          );
+          group.rotation.y = lerpAngle(group.rotation.y, Math.atan2(dx, dz), delta * 10);
         }
-
-        // Apply natural flat floor walk pose
         applyPose(bones, walkPose(walkPhase.current, false), delta);
-        bones.mug.visible = false;
-
-        if (distXZ < 0.14) {
-          pathQueueRef.current.shift();
-        }
+        if (distXZ < 0.1) pathQueueRef.current.shift();
       }
+      bones.mug.visible = false;
     } else {
-      // --- ARRIVED AT FINAL DESTINATION SPOT ---
-      groupRef.current.position.x = targetSpot.x;
-      groupRef.current.position.z = targetSpot.z;
-      // Floor height: Floor 1 is 0.0, Floor 2 is 3.6 (sitting drop is handled inside the skeleton by hipsY)
-      const floorLevelY = targetSpot.floor === 2 ? 3.6 : 0.0;
-      groupRef.current.position.y = lerpVal(currentY, floorLevelY, delta * 8);
-
-      groupRef.current.rotation.y = lerpAngle(
-        groupRef.current.rotation.y,
-        targetSpot.faceAngle,
-        delta * 6
-      );
-
-      // Select realistic situational pose based on spot category
-      let spotPoseData: PoseData;
-      if (targetSpot.category === "desk") {
-        spotPoseData = working ? typePose(timeSec, randomSeed.current) : readPose(timeSec, randomSeed.current);
-        bones.mug.visible = false;
-      } else if (targetSpot.category === "meeting") {
-        spotPoseData = meetingPose(timeSec, randomSeed.current);
-        bones.mug.visible = false;
-      } else if (targetSpot.category === "sofa") {
-        spotPoseData = sofaPose(timeSec);
-        bones.mug.visible = false;
-      } else if (targetSpot.category === "coffee" || targetSpot.category === "waterCooler") {
-        spotPoseData = coffeePose(timeSec);
-        bones.mug.visible = true; // Hold coffee cup
-      } else if (targetSpot.category === "balcony" || targetSpot.category === "window") {
-        spotPoseData = balconyPose(timeSec);
-        bones.mug.visible = false;
-      } else if (targetSpot.category === "whiteboard") {
-        spotPoseData = whiteboardPose(timeSec);
-        bones.mug.visible = false;
-      } else {
-        spotPoseData = readPose(timeSec, randomSeed.current);
-        bones.mug.visible = false;
-      }
-
-      applyPose(bones, spotPoseData, delta);
+      group.position.x = lerpVal(group.position.x, targetSpot.x, delta * 8);
+      group.position.z = lerpVal(group.position.z, targetSpot.z, delta * 8);
+      group.position.y = lerpVal(group.position.y, floorY(targetSpot.floor), delta * 8);
+      group.rotation.y = lerpAngle(group.rotation.y, targetSpot.faceAngle, delta * 6);
+      applyPose(bones, poseForSpot(targetSpot, working, timeSec, randomSeed.current), delta);
+      bones.mug.visible = targetSpot.category === "coffee" || targetSpot.category === "waterCooler";
     }
 
-    // Protection check against non-finite or rogue positions
-    if (!Number.isFinite(groupRef.current.position.y) || Math.abs(groupRef.current.position.y) > 20) {
-      const fallbackY = targetSpot.floor === 2 ? 3.6 : 0.0;
-      groupRef.current.position.set(targetSpot.x, fallbackY, targetSpot.z);
-      groupRef.current.rotation.y = targetSpot.faceAngle;
+    if (!Number.isFinite(group.position.y) || Math.abs(group.position.y) > 20) {
+      pathQueueRef.current = [];
+      group.position.set(targetSpot.x, floorY(targetSpot.floor), targetSpot.z);
+      group.rotation.y = targetSpot.faceAngle;
     }
 
-    // Role ring - stays anchored 2cm above the floor under the character
+    const upstairs = group.position.y > 1.8;
+    const hidden = viewFloor === 1 && upstairs;
+    group.visible = !hidden;
+    // Whenever Lt.2 is shown its slab covers Lt.1, so Lt.1 labels would float over Lt.2.
+    const labelHidden = viewFloor === 1 ? upstairs : !upstairs;
+
     if (ringRef.current) {
       const pulse = 1 + Math.sin(now / 240) * 0.08;
-      const baseScale = hovered ? 1.25 : 1.0;
-      ringRef.current.scale.set(baseScale * pulse, baseScale * pulse, 1);
-      ringRef.current.position.y = 0.02;
+      const s = (hovered ? 1.25 : 1) * pulse;
+      ringRef.current.scale.set(s, s, 1);
     }
 
-    // Sync live coordinates to shared ref for HUD labels
-    if (livePositionsRef && livePositionsRef.current) {
+    if (livePositionsRef?.current) {
       livePositionsRef.current[role] = {
-        x: groupRef.current.position.x,
-        z: groupRef.current.position.z,
-        y: groupRef.current.position.y,
-        rotationY: groupRef.current.rotation.y,
+        x: group.position.x,
+        z: group.position.z,
+        y: group.position.y,
+        rotationY: group.rotation.y,
         isWalking,
-        bubbleText: currentDialogue.current,
+        bubbleText: isWalking ? `🚶 Menuju ${targetSpot.label}` : currentDialogue.current,
+        spotLabel: targetSpot.label,
+        hidden: labelHidden,
       };
     }
   });
+
+  // Hidden agents (upper floor while viewing Lt.1) must not swallow clicks.
+  const isInteractive = () => groupRef.current?.visible !== false;
 
   return (
     <group
       ref={groupRef}
       onClick={(e) => {
+        if (!isInteractive()) return;
         e.stopPropagation();
         onSelect?.(agent);
       }}
       onPointerOver={(e) => {
+        if (!isInteractive()) return;
         e.stopPropagation();
         setHovered(true);
       }}
       onPointerOut={() => setHovered(false)}
     >
-      {/* Procedural Character Hierarchy */}
       <primitive object={bones.root} />
-
-      {/* Glowing Neon Role Ring */}
-      <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
-        <ringGeometry args={[0.35, 0.52, 32]} />
-        <meshStandardMaterial
-          color={ringColor}
-          emissive={ringColor}
-          emissiveIntensity={hovered ? 1.0 : 0.45}
-          side={THREE.DoubleSide}
-          transparent
-          opacity={0.85}
-        />
+      <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
+        <ringGeometry args={[0.35, 0.5, 40]} />
+        <meshBasicMaterial color={ringColor} side={THREE.DoubleSide} transparent opacity={hovered ? 0.95 : 0.7} toneMapped={false} />
       </mesh>
     </group>
   );

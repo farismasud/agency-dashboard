@@ -1,10 +1,9 @@
 "use client";
 
-import { DESK_POS_3D, ROLE_RING_COLOR } from "./layout";
+import { DESK_POS_3D } from "./layout";
 import { getScreenTexture } from "./ScreenTextures";
 
 export function DeskProp({ role, x, y = 0, z }: { role?: string; x: number; y?: number; z: number }) {
-  const accentColor = role ? ROLE_RING_COLOR[role] ?? "#38bdf8" : "#38bdf8";
   const screenTexture = getScreenTexture(role ?? "dev");
 
   return (
@@ -13,7 +12,7 @@ export function DeskProp({ role, x, y = 0, z }: { role?: string; x: number; y?: 
       {/* Table Top (Walnut Wood) */}
       <mesh position={[0, 0.72, 0]} castShadow receiveShadow>
         <boxGeometry args={[1.5, 0.05, 0.8]} />
-        <meshStandardMaterial color="#6b4423" roughness={0.4} metalness={0.1} />
+        <meshStandardMaterial color="#c89f72" roughness={0.45} metalness={0.05} />
       </mesh>
 
       {/* Desk Legs (Black Matte Metal) */}
@@ -37,7 +36,7 @@ export function DeskProp({ role, x, y = 0, z }: { role?: string; x: number; y?: 
       {/* Back Privacy / Modesty Panel */}
       <mesh position={[0, 0.45, -0.34]} castShadow receiveShadow>
         <boxGeometry args={[1.36, 0.4, 0.02]} />
-        <meshStandardMaterial color="#2d2218" roughness={0.6} />
+        <meshStandardMaterial color="#e7e2da" roughness={0.6} />
       </mesh>
 
       {/* --- COMPUTER SETUP --- */}
@@ -82,7 +81,6 @@ export function DeskProp({ role, x, y = 0, z }: { role?: string; x: number; y?: 
           <coneGeometry args={[0.06, 0.1, 16]} />
           <meshStandardMaterial color="#eab308" emissive="#fef08a" emissiveIntensity={0.8} />
         </mesh>
-        <pointLight position={[-0.08, 0.25, 0]} intensity={0.8} distance={2.5} color="#fef08a" />
       </group>
 
       {/* Keyboard */}
@@ -141,10 +139,12 @@ export function DeskProp({ role, x, y = 0, z }: { role?: string; x: number; y?: 
   );
 }
 
-export function AllDesks() {
+export function AllDesks({ floor }: { floor: 1 | 2 }) {
   return (
     <>
-      {Object.entries(DESK_POS_3D).map(([role, [x, y, z]]) => (
+      {Object.entries(DESK_POS_3D)
+        .filter(([, [, y]]) => (y > 1 ? 2 : 1) === floor)
+        .map(([role, [x, y, z]]) => (
         <DeskProp key={role} role={role} x={x} y={y} z={z} />
       ))}
     </>

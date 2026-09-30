@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { AgentState } from "@/lib/types";
@@ -7,51 +8,41 @@ import type { LiveAgentStatus } from "./CharacterModel";
 
 const LABEL_HEIGHT_Y = 1.95;
 
+// Moves the DOM labels (LabelOverlay) to follow each agent's live 3D position.
 export function CameraProjector({
   agents,
   labelRefs,
   livePositionsRef,
 }: {
   agents: Record<string, AgentState>;
-  labelRefs?: React.MutableRefObject<Record<string, HTMLDivElement | null>>;
-  livePositionsRef?: React.MutableRefObject<Record<string, LiveAgentStatus>>;
+  labelRefs: React.MutableRefObject<Record<string, HTMLDivElement | null>>;
+  livePositionsRef: React.MutableRefObject<Record<string, LiveAgentStatus>>;
 }) {
-  const v = new THREE.Vector3();
+  const v = useMemo(() => new THREE.Vector3(), []);
 
   useFrame(({ camera, size }) => {
-    if (!labelRefs?.current || !livePositionsRef?.current) return;
-
-    const entries = Object.values(agents);
-
-    for (const agent of entries) {
+    for (const agent of Object.values(agents)) {
       const el = labelRefs.current[agent.subagent_type];
-      if (!el) continue;
-
       const live = livePositionsRef.current[agent.subagent_type];
-      const posX = live ? live.x : 0;
-      const posY = (live && live.y !== undefined ? live.y : 0) + LABEL_HEIGHT_Y;
-      const posZ = live ? live.z : 0;
+      if (!el || !live) continue;
 
-      v.set(posX, posY, posZ);
-      v.project(camera);
-
-      // Hide if behind camera
-      if (v.z > 1) {
+      v.set(live.x, live.y + LABEL_HEIGHT_Y, live.z).project(camera);
+      if (live.hidden || v.z > 1) {
         el.style.display = "none";
         continue;
       }
 
       el.style.display = "flex";
       const screenX = (v.x * 0.5 + 0.5) * size.width;
-      const screenY = (-(v.y * 0.5) + 0.5) * size.height;
-
+      const screenY = (-v.y * 0.5 + 0.5) * size.height;
       el.style.transform = `translate(-50%, -100%) translate3d(${screenX}px, ${screenY}px, 0)`;
+      // Farther agents render behind nearer ones.
+      el.style.zIndex = String(Math.round((1 - v.z) * 10000));
 
-      // Update dialogue text content live if bubble element exists
-      const bubbleEl = el.querySelector("[data-bubble-text]") as HTMLSpanElement | null;
-      if (bubbleEl && live && live.bubbleText) {
-        bubbleEl.textContent = live.bubbleText;
-      }
+      const bubble = el.querySelector<HTMLSpanElement>("[data-bubble-text]");
+      if (bubble && bubble.textContent !== live.bubbleText) bubble.textContent = live.bubbleText;
+      const spot = el.querySelector<HTMLSpanElement>("[data-spot-text]");
+      if (spot && spot.textContent !== live.spotLabel) spot.textContent = live.spotLabel;
     }
   });
 
