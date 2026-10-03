@@ -23,8 +23,8 @@ masing-masing, berdasarkan event live dari tool mereka.
 
 ## Kondisi saat ini
 
-- `api/events.go`: `EventPayload{project, subagent_type, event_type, tool_name, summary, timestamp}`.
-- `api/store.go`: agent di-key per `subagent_type` dalam satu room (project). Tidak ada
+- `server/events.go`: `EventPayload{project, subagent_type, event_type, tool_name, summary, timestamp}`.
+- `server/store.go`: agent di-key per `subagent_type` dalam satu room (project). Tidak ada
   field tool asal, sehingga dua "lead" dari tool berbeda di project yang sama tabrakan.
 - `hooks/agency-notify.sh`: hook Claude; berisi sanitasi secret, pembentukan summary,
   payload, curl (`-m 2`), selalu `exit 0`, dukung `AGENCY_DRY_RUN`. Tes: `agency-notify.check.sh`.

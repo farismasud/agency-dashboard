@@ -1,4 +1,4 @@
-module agency-dashboard/api
+module agency-dashboard/server
 
 go 1.26.6
 

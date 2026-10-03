@@ -36,9 +36,9 @@
 ### Task 1: Backend accepts `agent` and keeps tool leads apart
 
 **Files:**
-- Modify: `api/events.go`
-- Modify: `api/store.go` (types at the top, `RecordEvent`)
-- Test: `api/store_test.go`, `api/main_test.go`
+- Modify: `server/events.go`
+- Modify: `server/store.go` (types at the top, `RecordEvent`)
+- Test: `server/store_test.go`, `server/main_test.go`
 - Modify: `docs/superpowers/specs/2026-10-03-multi-agent-visibility-design.md` (section 1)
 
 **Interfaces:**
@@ -47,7 +47,7 @@
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `api/store_test.go`:
+Append to `server/store_test.go`:
 
 ```go
 func TestRecordEvent_ToolLeadsDoNotCollide(t *testing.T) {
@@ -102,7 +102,7 @@ func TestRecordEvent_UnknownAgentRejected(t *testing.T) {
 }
 ```
 
-Append to `api/main_test.go` (look at the existing POST `/events` test in that file and reuse its router helper and imports; the body below is the new case):
+Append to `server/main_test.go` (look at the existing POST `/events` test in that file and reuse its router helper and imports; the body below is the new case):
 
 ```go
 func TestPostEvents_UnknownAgentIs400(t *testing.T) {
@@ -121,12 +121,12 @@ If `main_test.go` builds its router differently from `newTestRouter(t)`, copy wh
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd api && go test ./... 2>&1 | tail -20`
+Run: `cd server && go test ./... 2>&1 | tail -20`
 Expected: compile error `unknown field Agent in struct literal of type EventPayload`.
 
 - [ ] **Step 3: Implement**
 
-`api/events.go`:
+`server/events.go`:
 
 ```go
 package main
@@ -142,7 +142,7 @@ type EventPayload struct {
 }
 ```
 
-`api/store.go`: add `"fmt"` and `"strings"` to the imports, add `Agent string \`json:"agent"\`` as the second field of both `Event` and `AgentState`, add this above `RecordEvent`:
+`server/store.go`: add `"fmt"` and `"strings"` to the imports, add `Agent string \`json:"agent"\`` as the second field of both `Event` and `AgentState`, add this above `RecordEvent`:
 
 ```go
 var knownAgents = map[string]bool{"claude": true, "codex": true, "agy": true, "hermes": true}
@@ -228,13 +228,13 @@ Spec fix: in `docs/superpowers/specs/2026-10-03-multi-agent-visibility-design.md
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd api && go vet ./... && go test ./... 2>&1 | tail -20`
+Run: `cd server && go vet ./... && go test ./... 2>&1 | tail -20`
 Expected: `ok` for the package, no failures.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add api/events.go api/store.go api/store_test.go api/main_test.go docs/superpowers/specs/2026-10-03-multi-agent-visibility-design.md
+git add server/events.go server/store.go server/store_test.go server/main_test.go docs/superpowers/specs/2026-10-03-multi-agent-visibility-design.md
 git commit -m "feat(api): accept agent field and keep per-tool leads apart"
 ```
 
@@ -436,7 +436,7 @@ Expected: `agency-notify.check: ok` then `agency-emit.check: ok`. The original t
 
 - [ ] **Step 7: Live smoke test (backend up)**
 
-Run, in two shells: `cd api && go run .` and then
+Run, in two shells: `cd server && go run .` and then
 `echo '{"hook_event_name":"PreToolUse","cwd":"/tmp/plan-smoke","tool_name":"Bash","tool_input":{"command":"ls"}}' | hooks/agency-notify.sh; curl -s 'localhost:8090/rooms/snapshot?project=/tmp/plan-smoke' | jq '.agents'`
 Expected: one agent `lead` with `"agent": "claude"`. Stop the backend afterwards.
 
@@ -706,10 +706,10 @@ git commit -m "feat(hooks): Codex adapter for agency events"
 ### Task 5: Web shows tool leads with their own label and colour
 
 **Files:**
-- Modify: `web/lib/types.ts`
-- Modify: `web/components/Office3D/layout.ts`
-- Modify: `web/components/Office3D/CharacterModel.tsx` (`ROLE_LOOKS`, around line 51)
-- Modify: `web/components/AgentDossierModal.tsx` (`MODEL_INFO`)
+- Modify: `client/lib/types.ts`
+- Modify: `client/components/Office3D/layout.ts`
+- Modify: `client/components/Office3D/CharacterModel.tsx` (`ROLE_LOOKS`, around line 51)
+- Modify: `client/components/AgentDossierModal.tsx` (`MODEL_INFO`)
 
 **Interfaces:**
 - Consumes: wire contract from Task 1: agents arrive keyed `codex-lead`, `agy-lead`, `hermes-lead`, each with `agent: "codex" | "agy" | "hermes"`.
@@ -717,11 +717,11 @@ git commit -m "feat(hooks): Codex adapter for agency events"
 
 - [ ] **Step 1: Types**
 
-`web/lib/types.ts`: add `agent?: string;` to `AgentState` (after `subagent_type`) and to `FeedEvent` (after `subagent_type`). Optional so existing literals (for example in `app/kerja/page.tsx`) still type-check.
+`client/lib/types.ts`: add `agent?: string;` to `AgentState` (after `subagent_type`) and to `FeedEvent` (after `subagent_type`). Optional so existing literals (for example in `app/kerja/page.tsx`) still type-check.
 
 - [ ] **Step 2: Label and colour table**
 
-In `web/components/Office3D/layout.ts`, above `ROLE_LABEL`, add:
+In `client/components/Office3D/layout.ts`, above `ROLE_LABEL`, add:
 
 ```ts
 // Leads of non-Claude tools. The backend prefixes their subagent type with the
@@ -770,17 +770,17 @@ In `AgentDossierModal.tsx` add to `MODEL_INFO`:
 
 - [ ] **Step 4: Type-check and lint**
 
-Run: `cd web && npx tsc --noEmit && npx eslint components lib`
+Run: `cd client && npx tsc --noEmit && npx eslint components lib`
 Expected: no errors (warnings that already existed before this task may remain; do not add new ones).
 
 - [ ] **Step 5: Existing activity smoke test still passes**
 
-Run the same way `web/components/Office3D/activity.check.ts` was run when it was written (it is a standalone check; its header comment shows the command). Expected: its output ends in a pass message.
+Run the same way `client/components/Office3D/activity.check.ts` was run when it was written (it is a standalone check; its header comment shows the command). Expected: its output ends in a pass message.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add web/lib/types.ts web/components/Office3D/layout.ts web/components/Office3D/CharacterModel.tsx web/components/AgentDossierModal.tsx
+git add client/lib/types.ts client/components/Office3D/layout.ts client/components/Office3D/CharacterModel.tsx client/components/AgentDossierModal.tsx
 git commit -m "feat(web): label and colour leads of non-Claude tools"
 ```
 
@@ -874,7 +874,7 @@ Show Faris the snippet for each `MISSING` tool from Step 1 and apply only the on
 
 - [ ] **Step 3: End-to-end check**
 
-Start the stack (`cd api && go run .` and `cd web && npm run dev`, or whatever Faris already runs). Then, with the real adapters:
+Start the stack (`cd server && go run .` and `cd client && npm run dev`, or whatever Faris already runs). Then, with the real adapters:
 
 ```bash
 P=/tmp/plan-e2e
@@ -892,7 +892,7 @@ Replace the "4. Instalasi" body in the spec with: `hooks/install.sh` is read-onl
 
 - [ ] **Step 5: Final verification and commit**
 
-Run: `cd api && go vet ./... && go test ./... && cd .. && for c in hooks/*.check.sh; do "$c" || echo "FAILED $c"; done && cd web && npx tsc --noEmit`
+Run: `cd server && go vet ./... && go test ./... && cd .. && for c in hooks/*.check.sh; do "$c" || echo "FAILED $c"; done && cd client && npx tsc --noEmit`
 Expected: all Go tests pass, every check script prints `ok`, no `FAILED`, `tsc` clean.
 
 ```bash
