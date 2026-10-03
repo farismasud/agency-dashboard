@@ -213,7 +213,7 @@ function UpperFloor({ night, agents, activity, onInteract }: { night: boolean; a
       <WallWhiteboard position={[-9.97, y + 1.6, -3]} rotation={[0, Math.PI / 2, 0]} onInteract={onInteract} />
       <WallBookshelf position={[-8, y + 1.0, -6.85]} onInteract={onInteract} />
 
-      {/* TV lounge */}
+      {/* TV lounge (MURNI AREA RELAX & NONTON, TANPA MEJA KERJA) */}
       <Rug position={[5.5, y + 0.004, -3.8]} size={[6, 4]} color="#f5efe6" border="#d6c7ae" />
       <LoungeTV position={[5.5, y, -6.95]} agents={agents} onInteract={onInteract} />
       <Sofa position={[5.5, y, -2.35]} rotation={[0, Math.PI, 0]} width={2.6} color="#475569" cushion="#64748b" onInteract={onInteract} />
@@ -224,8 +224,7 @@ function UpperFloor({ night, agents, activity, onInteract }: { night: boolean; a
       <PottedPlant position={[1.6, y, -6.4]} scale={1.1} onInteract={onInteract} />
       <PottedPlant position={[9.4, y, 1.0]} scale={1.0} onInteract={onInteract} />
 
-      {/* Game corner */}
-      <PingPongTable position={[-3, y, 4.2]} onInteract={onInteract} />
+      {/* Break & Rooftop area */}
       <PottedPlant position={[0.5, y, 6.4]} scale={1.0} onInteract={onInteract} />
       <PottedPlant position={[-7.3, y, 6.4]} scale={0.9} onInteract={onInteract} />
 

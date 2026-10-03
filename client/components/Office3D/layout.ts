@@ -56,14 +56,14 @@ export const DESK_POS_3D: Record<string, [number, number, number]> = {
   devops: [-6.5, 0, 0],
   dba: [-3.5, 0, 0],
   infra: [-6.5, 0, 2.5],
-  // Lantai 2 — Strategy studio & Trading Floor
+  // Lantai 2 — Strategy & Trading Studio (zona kiri)
   pm: [-5.5, FLOOR2_Y, -4.5],
   analyst: [-2.5, FLOOR2_Y, -4.5],
-  security: [-5.5, FLOOR2_Y, -1.2],
-  designer: [-2.5, FLOOR2_Y, -1.2],
-  trader: [5.5, FLOOR2_Y, -4.5],
-  finance: [5.5, FLOOR2_Y, -1.2],
-  scribe: [-2.5, FLOOR2_Y, 2.0],
+  trader: [-5.5, FLOOR2_Y, -1.5],
+  finance: [-2.5, FLOOR2_Y, -1.5],
+  designer: [-5.5, FLOOR2_Y, 1.5],
+  security: [-2.5, FLOOR2_Y, 1.5],
+  scribe: [-4.0, FLOOR2_Y, 4.2],
   // Main Claude session (hook events without agent_type)
   lead: [1.2, FLOOR2_Y, 2.9],
 };
