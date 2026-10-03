@@ -52,7 +52,17 @@ type Store struct {
 }
 
 func NewStore() *Store {
-	return &Store{rooms: make(map[string]*RoomState)}
+	s := &Store{rooms: make(map[string]*RoomState)}
+	// Auto-seed existing workspace folders if available
+	defaultProjects := []string{
+		"/home/faris/Faris/Kerja/agency-dashboard",
+		"/home/faris/Faris/Kerja/obsidian-dashboard",
+		"/home/faris/Faris/Kerja/odoo-revamp",
+	}
+	for _, p := range defaultProjects {
+		s.getOrCreateRoomLocked(p)
+	}
+	return s
 }
 
 func (s *Store) getOrCreateRoomLocked(project string) *RoomState {

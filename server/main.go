@@ -8,12 +8,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const frontendOrigin = "http://localhost:3090"
-
 func corsMiddleware(c *gin.Context) {
-	c.Header("Access-Control-Allow-Origin", frontendOrigin)
+	origin := c.Request.Header.Get("Origin")
+	if origin == "" {
+		origin = "*"
+	}
+	c.Header("Access-Control-Allow-Origin", origin)
 	c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-	c.Header("Access-Control-Allow-Headers", "Content-Type")
+	c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
 	if c.Request.Method == "OPTIONS" {
 		c.AbortWithStatus(204)
 		return
