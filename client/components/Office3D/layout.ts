@@ -50,31 +50,41 @@ export const floorY = (floor: 1 | 2) => (floor === 2 ? FLOOR2_Y : 0);
 
 // [x, y, z] desk centre. Chair sits at z + 0.65, monitor faces +z.
 export const DESK_POS_3D: Record<string, [number, number, number]> = {
-  // Lantai 1 — Engineering open office
+  // Lantai 1 — Engineering Pod A (Core Dev & QA)
   dev: [-6.5, 0, -3.5],
-  qa: [-3.5, 0, -3.5],
-  devops: [-6.5, 0, 0],
-  dba: [-3.5, 0, 0],
-  infra: [-6.5, 0, 2.5],
-  // Lantai 2 — Strategy & Trading Studio (zona kiri)
+  qa: [-3.8, 0, -3.5],
+
+  // Lantai 1 — Engineering Pod B (Data & System Reliability)
+  dba: [-6.5, 0, -0.8],
+  devops: [-3.8, 0, -0.8],
+
+  // Lantai 1 — Systems & OS Workstations
+  infra: [-6.5, 0, 1.9],
+  omarchy: [-3.8, 0, 1.9],
+
+  // Lantai 2 — Strategy & Leadership
   pm: [-5.5, FLOOR2_Y, -4.5],
   analyst: [-2.5, FLOOR2_Y, -4.5],
+
+  // Lantai 2 — Financial & Trading Studio
   trader: [-5.5, FLOOR2_Y, -1.5],
   finance: [-2.5, FLOOR2_Y, -1.5],
+
+  // Lantai 2 — Design & Security
   designer: [-5.5, FLOOR2_Y, 1.5],
   security: [-2.5, FLOOR2_Y, 1.5],
+
+  // Lantai 2 — Documentation & Research Desk
   scribe: [-4.0, FLOOR2_Y, 4.2],
-  // Main Claude session (hook events without agent_type)
+
+  // Main Lead Session (Executive Bridge Desk)
   lead: [1.2, FLOOR2_Y, 2.9],
 };
 
-// Hot desks on Lt.1 for subagent types without a fixed desk (Explore, general-purpose...).
-// They face the corridor (rotated 180°), so the chair sits at z - 0.65.
+// Clean Hot Desks along quiet side of Floor 1 (spacious, non-overlapping)
 export const HOT_DESKS: [number, number, number][] = [
-  [-6.2, 0, 3.2],
-  [-4.2, 0, 3.2],
-  [-2.2, 0, 3.2],
-  [-0.2, 0, 3.2],
+  [-0.8, 0, -3.5],
+  [-0.8, 0, -0.8],
 ];
 
 // First-seen guest roles keep their hot desk for the whole session.

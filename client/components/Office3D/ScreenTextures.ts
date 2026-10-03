@@ -22,7 +22,23 @@ export function getScreenTexture(role: string): THREE.CanvasTexture {
 }
 
 function drawBase(ctx: CanvasRenderingContext2D, role: string) {
-  switch (role) {
+  // Normalize role from multi-agent prefix (e.g. hermes-trader -> trader)
+  const normRole = role.replace(/^(hermes|claude|codex|agy)-/, "");
+
+  switch (normRole) {
+    case "trader":
+      return drawTradingView(ctx);
+    case "finance":
+      return drawFinanceDashboard(ctx);
+    case "infra":
+      return drawInfraMonitoring(ctx);
+    case "scribe":
+      return drawObsidianGraphEditor(ctx);
+    case "uiux":
+    case "designer":
+      return drawFigmaCanvas(ctx);
+    case "omarchy":
+      return drawLinuxHtop(ctx);
     case "qa":
       return drawGitHubAndTerminal(ctx);
     case "pm":
@@ -36,8 +52,6 @@ function drawBase(ctx: CanvasRenderingContext2D, role: string) {
       return drawPostgresEditor(ctx);
     case "security":
       return drawSecurityGuard(ctx);
-    case "designer":
-      return drawFigmaCanvas(ctx);
     default:
       return drawVSCode(ctx);
   }
@@ -450,4 +464,293 @@ function drawFigmaCanvas(ctx: CanvasRenderingContext2D) {
   ctx.fillStyle = "#c084fc";
   ctx.font = "10px sans-serif";
   ctx.fillText("Typography: JetBrains Mono & Inter  •  Auto-Layout: Enabled", 65, 258);
+}
+
+
+// 9. TRADER: TradingView Candlestick Chart & Order Book
+function drawTradingView(ctx: CanvasRenderingContext2D) {
+  ctx.fillStyle = "#0c0d14";
+  ctx.fillRect(0, 0, 512, 300);
+  drawWindowHeader(ctx, "TradingView Pro - BTC/USDT & BBCA Live", "#131722");
+
+  // Chart Header
+  ctx.fillStyle = "#22c55e";
+  ctx.font = "bold 13px sans-serif";
+  ctx.fillText("BTC/USDT  $68,420.50  +4.82%", 16, 44);
+
+  // Candlesticks
+  const candles = [
+    { o: 150, c: 130, h: 120, l: 160 },
+    { o: 130, c: 110, h: 100, l: 135 },
+    { o: 110, c: 140, h: 105, l: 150 },
+    { o: 140, c: 120, h: 110, l: 145 },
+    { o: 120, c: 90, h: 80, l: 130 },
+    { o: 90, c: 80, h: 70, l: 100 },
+    { o: 80, c: 105, h: 75, l: 115 },
+    { o: 105, c: 65, h: 60, l: 110 },
+    { o: 65, c: 55, h: 50, l: 75 },
+    { o: 55, c: 70, h: 48, l: 80 },
+    { o: 70, c: 45, h: 40, l: 75 },
+  ];
+
+  candles.forEach((cd, i) => {
+    const x = 30 + i * 26;
+    const isUp = cd.c < cd.o; // inverted y coords
+    const color = isUp ? "#22c55e" : "#ef4444";
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x + 7, cd.h);
+    ctx.lineTo(x + 7, cd.l);
+    ctx.stroke();
+
+    ctx.fillStyle = color;
+    ctx.fillRect(x, Math.min(cd.o, cd.c), 14, Math.max(4, Math.abs(cd.c - cd.o)));
+  });
+
+  // Moving Average Lines
+  ctx.strokeStyle = "#eab308";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(35, 140);
+  ctx.bezierCurveTo(120, 110, 200, 85, 300, 55);
+  ctx.stroke();
+
+  // Order Book Panel (Right side)
+  ctx.fillStyle = "#131722";
+  ctx.fillRect(330, 24, 182, 276);
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "bold 9px monospace";
+  ctx.fillText("ORDER BOOK (LIVE)", 340, 42);
+
+  // Asks (Red)
+  ctx.fillStyle = "#ef4444";
+  ctx.fillText("68,450.00   1.24 BTC", 340, 60);
+  ctx.fillText("68,440.00   0.85 BTC", 340, 76);
+  ctx.fillText("68,430.00   3.10 BTC", 340, 92);
+
+  // Spread
+  ctx.fillStyle = "#38bdf8";
+  ctx.fillText("SPREAD: $10.50 (0.015%)", 340, 110);
+
+  // Bids (Green)
+  ctx.fillStyle = "#22c55e";
+  ctx.fillText("68,420.00   2.45 BTC", 340, 128);
+  ctx.fillText("68,410.00   4.12 BTC", 340, 144);
+  ctx.fillText("68,400.00   8.90 BTC", 340, 160);
+
+  // Bottom Volume Bar
+  ctx.fillStyle = "#1e293b";
+  ctx.fillRect(0, 165, 330, 31);
+  ctx.fillStyle = "#22c55e";
+  ctx.fillRect(35, 175, 12, 21);
+  ctx.fillRect(61, 180, 12, 16);
+  ctx.fillStyle = "#ef4444";
+  ctx.fillRect(87, 170, 12, 26);
+  ctx.fillStyle = "#22c55e";
+  ctx.fillRect(113, 168, 12, 28);
+  ctx.fillRect(139, 160, 12, 36);
+}
+
+// 10. FINANCE: Financial Balance Sheet & Quarterly Analytics
+function drawFinanceDashboard(ctx: CanvasRenderingContext2D) {
+  ctx.fillStyle = "#0f172a";
+  ctx.fillRect(0, 0, 512, 300);
+  drawWindowHeader(ctx, "Finance Studio - Cash Flow & Revenue Analytics", "#1e293b");
+
+  // Summary Metrics
+  const metrics = [
+    { label: "Q3 REVENUE", val: "$1,420,800", color: "#10b981" },
+    { label: "NET BURN", val: "-$84,200", color: "#f59e0b" },
+    { label: "RUNWAY", val: "22 Months", color: "#38bdf8" },
+  ];
+
+  metrics.forEach((m, idx) => {
+    ctx.fillStyle = "#1e293b";
+    ctx.beginPath();
+    ctx.roundRect(16 + idx * 160, 36, 150, 48, 6);
+    ctx.fill();
+
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "8px sans-serif";
+    ctx.fillText(m.label, 26 + idx * 160, 52);
+
+    ctx.fillStyle = m.color;
+    ctx.font = "bold 13px monospace";
+    ctx.fillText(m.val, 26 + idx * 160, 72);
+  });
+
+  // Table rows
+  ctx.fillStyle = "#1e293b";
+  ctx.fillRect(16, 96, 480, 95);
+  ctx.fillStyle = "#64748b";
+  ctx.font = "bold 9px monospace";
+  ctx.fillText("CATEGORY                BUDGET       ACTUAL       VARIANCE", 26, 112);
+
+  const rows = [
+    { cat: "Cloud Infrastructure", b: "$45,000", a: "$38,400", v: "+14.6%", ok: true },
+    { cat: "Engineering & AI Ops", b: "$120,000", a: "$114,200", v: "+4.8%", ok: true },
+    { cat: "Marketing / Growth", b: "$30,000", a: "$31,500", v: "-5.0%", ok: false },
+  ];
+
+  rows.forEach((r, idx) => {
+    const y = 132 + idx * 20;
+    ctx.fillStyle = "#e2e8f0";
+    ctx.font = "9px monospace";
+    ctx.fillText(r.cat.padEnd(24) + r.b.padEnd(13) + r.a.padEnd(13), 26, y);
+    ctx.fillStyle = r.ok ? "#10b981" : "#ef4444";
+    ctx.fillText(r.v, 390, y);
+  });
+}
+
+// 11. INFRA: Cluster Topology & Prometheus Metrics
+function drawInfraMonitoring(ctx: CanvasRenderingContext2D) {
+  ctx.fillStyle = "#030712";
+  ctx.fillRect(0, 0, 512, 300);
+  drawWindowHeader(ctx, "Infra Cluster - Prometheus & Kubernetes Nodes", "#111827");
+
+  // Node Clusters
+  const nodes = [
+    { name: "k8s-master-01", cpu: 42, ram: 68, status: "READY" },
+    { name: "k8s-worker-01", cpu: 85, ram: 78, status: "BUSY" },
+    { name: "k8s-worker-02", cpu: 28, ram: 45, status: "READY" },
+  ];
+
+  nodes.forEach((n, idx) => {
+    ctx.fillStyle = "#111827";
+    ctx.beginPath();
+    ctx.roundRect(16 + idx * 160, 36, 150, 80, 6);
+    ctx.fill();
+
+    ctx.fillStyle = "#22c55e";
+    ctx.beginPath();
+    ctx.arc(28 + idx * 160, 52, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = "#f3f4f6";
+    ctx.font = "bold 9px monospace";
+    ctx.fillText(n.name, 38 + idx * 160, 56);
+
+    // CPU bar
+    ctx.fillStyle = "#4b5563";
+    ctx.fillRect(28 + idx * 160, 70, 126, 6);
+    ctx.fillStyle = n.cpu > 80 ? "#ef4444" : "#06b6d4";
+    ctx.fillRect(28 + idx * 160, 70, (126 * n.cpu) / 100, 6);
+
+    ctx.fillStyle = "#9ca3af";
+    ctx.font = "8px monospace";
+    ctx.fillText(`CPU: ${n.cpu}%    RAM: ${n.ram}%`, 28 + idx * 160, 92);
+  });
+
+  // Traffic Chart
+  ctx.fillStyle = "#111827";
+  ctx.fillRect(16, 126, 480, 65);
+  ctx.strokeStyle = "#06b6d4";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(26, 175);
+  ctx.lineTo(80, 160);
+  ctx.lineTo(150, 145);
+  ctx.lineTo(220, 168);
+  ctx.lineTo(300, 138);
+  ctx.lineTo(400, 155);
+  ctx.lineTo(480, 135);
+  ctx.stroke();
+  ctx.fillStyle = "#38bdf8";
+  ctx.font = "bold 8px monospace";
+  ctx.fillText("Ingress Traffic: 12.8 Gbps • HTTP 200 OK 99.98%", 26, 140);
+}
+
+// 12. SCRIBE: Obsidian Knowledge Vault & Graph
+function drawObsidianGraphEditor(ctx: CanvasRenderingContext2D) {
+  ctx.fillStyle = "#18181b";
+  ctx.fillRect(0, 0, 512, 300);
+  drawWindowHeader(ctx, "Obsidian Vault - Graphify & Documentation Steward", "#27272a");
+
+  // Left document tree
+  ctx.fillStyle = "#27272a";
+  ctx.fillRect(0, 24, 130, 276);
+  ctx.fillStyle = "#a1a1aa";
+  ctx.font = "9px sans-serif";
+  ctx.fillText("📁 Projects", 10, 44);
+  ctx.fillText("  📄 Odoo Revamp", 14, 60);
+  ctx.fillText("  📄 Agency Center", 14, 76);
+  ctx.fillText("📁 Knowledge", 10, 96);
+  ctx.fillText("  📄 PostgreSQL", 14, 112);
+  ctx.fillText("  📄 Multi-Agent", 14, 128);
+
+  // Main Editor
+  ctx.fillStyle = "#f4f4f5";
+  ctx.font = "bold 12px sans-serif";
+  ctx.fillText("# Multi-Agent Architecture Standard", 145, 48);
+
+  ctx.fillStyle = "#a1a1aa";
+  ctx.font = "10px monospace";
+  ctx.fillText("Status: [[Knowledge/Architecture]] • Tags: #orchestrator", 145, 68);
+  ctx.fillText("All subagents synchronize through `orch` CLI and unified", 145, 88);
+  ctx.fillText("task queue stored at `~/Documents/Obsidian Vault/`.", 145, 104);
+
+  // Mini Constellation Graph in bottom right
+  ctx.fillStyle = "#09090b";
+  ctx.beginPath();
+  ctx.roundRect(320, 115, 175, 76, 6);
+  ctx.fill();
+
+  ctx.strokeStyle = "rgba(168, 85, 247, 0.4)";
+  ctx.beginPath();
+  ctx.moveTo(350, 150);
+  ctx.lineTo(400, 135);
+  ctx.lineTo(450, 160);
+  ctx.lineTo(410, 175);
+  ctx.closePath();
+  ctx.stroke();
+
+  // Nodes
+  const pts = [
+    { x: 350, y: 150, c: "#8b5cf6" },
+    { x: 400, y: 135, c: "#06b6d4" },
+    { x: 450, y: 160, c: "#f43f5e" },
+    { x: 410, y: 175, c: "#10b981" },
+  ];
+  pts.forEach((p) => {
+    ctx.fillStyle = p.c;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+// 13. OMARCHY: Linux Htop & Sysinfo Terminal
+function drawLinuxHtop(ctx: CanvasRenderingContext2D) {
+  ctx.fillStyle = "#0f0f14";
+  ctx.fillRect(0, 0, 512, 300);
+  drawWindowHeader(ctx, "faris@omarchy: htop (Arch Linux 7.2)", "#1a1a24");
+
+  // Core Bars
+  for (let c = 0; c < 8; c++) {
+    const y = 35 + c * 14;
+    ctx.fillStyle = "#38bdf8";
+    ctx.font = "bold 8px monospace";
+    ctx.fillText(`${c + 1} [`, 12, y);
+
+    const pct = 15 + ((c * 27) % 65);
+    ctx.fillStyle = "#22c55e";
+    ctx.fillRect(32, y - 7, pct, 8);
+    ctx.fillStyle = "#64748b";
+    ctx.fillRect(32 + pct, y - 7, 80 - pct, 8);
+    ctx.fillStyle = "#f8fafc";
+    ctx.fillText(`] ${pct}%`, 116, y);
+  }
+
+  // Sys info right side
+  ctx.fillStyle = "#a855f7";
+  ctx.font = "bold 10px monospace";
+  ctx.fillText("OS: Omarchy Linux x86_64", 230, 45);
+  ctx.fillStyle = "#e2e8f0";
+  ctx.font = "9px monospace";
+  ctx.fillText("Kernel: 7.2.5-3-omarchy", 230, 62);
+  ctx.fillText("Uptime: 4 days, 16:32", 230, 78);
+  ctx.fillText("Tasks: 284, 12 running", 230, 94);
+  ctx.fillText("Mem: 8.42 GiB / 31.2 GiB", 230, 110);
+  ctx.fillText("Wayland Compositor: Hyprland", 230, 126);
 }
