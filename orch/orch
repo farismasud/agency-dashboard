@@ -4,17 +4,35 @@
 set -euo pipefail
 Q="${ORCH_HOME:-$HOME/Documents/Obsidian Vault/Orchestrator}"
 T="$Q/tasks"; mkdir -p "$T"/{todo,doing,done}
+SELF_CHECKED="qa reviewer appsec" # roles whose claimer must not be the builder of the parent task
 note() { printf -- '- %s %s\n' "$(date '+%F %T')" "$*" >> "$Q/log.md"; }
 find_task() { find "$T" -name "$1*.md" | head -1; }
+# field <file> <key>: first front-matter value ("" if absent). Titles may contain ": ".
+field() {
+  awk -v k="$2" '
+    NR == 1 && $0 != "---" { exit }
+    $0 == "---" { n++; if (n == 2) exit; next }
+    n == 1 && index($0, k ": ") == 1 { print substr($0, length(k) + 3); exit }' "$1"
+}
+# mk_task <role> <title> <chain|""> <parent|""> <source_agent|"">; body on stdin; prints the id.
+mk_task() {
+  local role="$1" title="$2" chain="$3" parent="$4" src="$5" id f
+  grep -q "^$role	" "$Q/roles.txt" || { echo "unknown role '$role' (orch roles)" >&2; return 1; }
+  id="$(date +%Y%m%d-%H%M%S)-$RANDOM"
+  f="$T/todo/$id-$role.md"
+  {
+    printf -- '---\nid: %s\nrole: %s\ntitle: %s\ncreated: %s\nchain: %s\n' "$id" "$role" "$title" "$(date -Is)" "${chain:-$id}"
+    if [ -n "$parent" ]; then printf 'parent: %s\n' "$parent"; fi
+    if [ -n "$src" ]; then printf 'source_agent: %s\n' "$src"; fi
+    printf -- '---\n# %s\n' "$title"
+    cat
+  } > "$f"
+  note "NEW $id [$role] $title"; echo "$id"
+}
 case "${1:-help}" in
   new)   # orch new <role> <title...>   (body from stdin if piped)
     role="$2"; shift 2; title="$*"
-    grep -q "^$role	" "$Q/roles.txt" || { echo "unknown role '$role' (orch roles)" >&2; exit 1; }
-    id="$(date +%Y%m%d-%H%M%S)-$RANDOM"
-    f="$T/todo/$id-$role.md"
-    { printf -- '---\nid: %s\nrole: %s\ntitle: %s\ncreated: %s\n---\n# %s\n' "$id" "$role" "$title" "$(date -Is)" "$title"
-      [ -t 0 ] || cat; } > "$f"
-    note "NEW $id [$role] $title"; echo "$id" ;;
+    if [ -t 0 ]; then mk_task "$role" "$title" "" "" "" </dev/null; else mk_task "$role" "$title" "" "" ""; fi ;;
   ls)    # orch ls [todo|doing|done]
     find "$T/${2:-}" -name '*.md' 2>/dev/null | sort | sed "s|$T/||" ;;
   claim) # orch claim <agent> [role]  -> oldest matching todo

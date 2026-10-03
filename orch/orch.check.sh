@@ -37,5 +37,14 @@ eq claim-path "$path" "$(ls "$ORCH_HOME"/tasks/doing/*.md)"
 eq done-result "$(grep -c '^## Result (claude' "$ORCH_HOME"/tasks/done/*-analyst.md)" 1
 eq roles-lists "$("$ORCH" roles | wc -l | tr -d ' ')" 9
 
+# ---- Task 2: chain metadata and safe titles ----
+fresh
+id=$("$ORCH" new backend 'judul: dengan "kutip" & $(touch /tmp/orch-pwn) `x`' </dev/null)
+f=$(ls "$ORCH_HOME"/tasks/todo/*.md)
+eq root-chain-is-own-id "$(grep -c "^chain: $id\$" "$f")" 1
+eq root-no-parent "$(grep -c '^parent: ' "$f")" 0
+eq title-literal "$(grep -c '^title: judul: dengan "kutip" & \$(touch /tmp/orch-pwn) `x`$' "$f")" 1
+[ ! -e /tmp/orch-pwn ] || { echo "FAIL: title was executed"; fail=1; rm -f /tmp/orch-pwn; }
+
 [ $fail = 0 ] && echo "orch.check: ok"
 exit $fail
