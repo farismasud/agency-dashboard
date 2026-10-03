@@ -77,6 +77,7 @@ Di repo: `orch/orch` (sumber), `orch/chains.txt` (default), `orch/orch.check.sh`
 `install.sh` membackup `~/.local/bin/orch` ke `orch.bak-<tanggal>`, menyalin skrip baru, dan menyalin
 `chains.txt` ke vault hanya bila belum ada (tidak menimpa hasil edit Faris). Yang dipakai agent adalah
 salinan di `~/.local/bin`, bukan file repo, jadi pindah branch tidak mengubah perilaku `orch` live.
+`install.sh --check` hanya membandingkan salinan live dengan sumber repo dan melapor `ok`/`BEDA`, tanpa menulis apa pun.
 `ROLES.md` di vault mendapat satu bagian pendek tentang rantai dan aturan claim.
 
 ## Penanganan error
