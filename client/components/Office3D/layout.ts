@@ -16,6 +16,12 @@ export const ROLE_LABEL: Record<string, string> = {
   security: "Security",
   designer: "Designer",
   lead: "Lead",
+  trader: "Trader",
+  finance: "Finance",
+  scribe: "Scribe",
+  infra: "Infra",
+  uiux: "UI/UX",
+  omarchy: "Omarchy",
   ...Object.fromEntries(Object.entries(TOOL_LEAD_STYLE).map(([role, style]) => [role, style.label])),
 };
 
@@ -29,6 +35,12 @@ export const ROLE_RING_COLOR: Record<string, string> = {
   security: "#dc2626",
   designer: "#a855f7",
   lead: "#f59e0b",
+  trader: "#10b981",
+  finance: "#eab308",
+  scribe: "#6366f1",
+  infra: "#06b6d4",
+  uiux: "#ec4899",
+  omarchy: "#8b5cf6",
   ...Object.fromEntries(Object.entries(TOOL_LEAD_STYLE).map(([role, style]) => [role, style.color])),
 };
 
@@ -43,11 +55,15 @@ export const DESK_POS_3D: Record<string, [number, number, number]> = {
   qa: [-3.5, 0, -3.5],
   devops: [-6.5, 0, 0],
   dba: [-3.5, 0, 0],
-  // Lantai 2 — Strategy studio
+  infra: [-6.5, 0, 2.5],
+  // Lantai 2 — Strategy studio & Trading Floor
   pm: [-5.5, FLOOR2_Y, -4.5],
   analyst: [-2.5, FLOOR2_Y, -4.5],
   security: [-5.5, FLOOR2_Y, -1.2],
   designer: [-2.5, FLOOR2_Y, -1.2],
+  trader: [5.5, FLOOR2_Y, -4.5],
+  finance: [5.5, FLOOR2_Y, -1.2],
+  scribe: [-2.5, FLOOR2_Y, 2.0],
   // Main Claude session (hook events without agent_type)
   lead: [1.2, FLOOR2_Y, 2.9],
 };

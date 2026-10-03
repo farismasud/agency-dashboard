@@ -2,7 +2,7 @@ package main
 
 var namePool = []string{
 	"Zaki", "Lulu", "Pingot", "Risko", "Vino", "Dara", "Bagas", "Sari",
-	"Reno", "Tia", "Yudha", "Nadia",
+	"Reno", "Tia", "Yudha", "Nadia", "Fikri", "Aldo", "Maya", "Tari",
 }
 
 // AssignName returns a stable display name for subagentType within room.
