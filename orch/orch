@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# orch: shared task queue for Claude, Codex, Antigravity (agy), Hermes. State = dir (todo/doing/done), mv = atomic claim.
+# ponytail: no locking beyond mv; fine for 4 agents, add flock if races show up.
+set -euo pipefail
+Q="${ORCH_HOME:-$HOME/Documents/Obsidian Vault/Orchestrator}"
+T="$Q/tasks"; mkdir -p "$T"/{todo,doing,done}
+note() { printf -- '- %s %s\n' "$(date '+%F %T')" "$*" >> "$Q/log.md"; }
+find_task() { find "$T" -name "$1*.md" | head -1; }
+case "${1:-help}" in
+  new)   # orch new <role> <title...>   (body from stdin if piped)
+    role="$2"; shift 2; title="$*"
+    grep -q "^$role	" "$Q/roles.txt" || { echo "unknown role '$role' (orch roles)" >&2; exit 1; }
+    id="$(date +%Y%m%d-%H%M%S)-$RANDOM"
+    f="$T/todo/$id-$role.md"
+    { printf -- '---\nid: %s\nrole: %s\ntitle: %s\ncreated: %s\n---\n# %s\n' "$id" "$role" "$title" "$(date -Is)" "$title"
+      [ -t 0 ] || cat; } > "$f"
+    note "NEW $id [$role] $title"; echo "$id" ;;
+  ls)    # orch ls [todo|doing|done]
+    find "$T/${2:-}" -name '*.md' 2>/dev/null | sort | sed "s|$T/||" ;;
+  claim) # orch claim <agent> [role]  -> oldest matching todo
+    agent="$2"; pat="*${3:+-$3}.md"
+    while IFS= read -r f; do
+      d="$T/doing/$(basename "$f")"
+      if mv "$f" "$d" 2>/dev/null; then
+        printf '\nclaimed_by: %s at %s\n' "$agent" "$(date -Is)" >> "$d"
+        note "CLAIM $(basename "$f") by $agent"; echo "$d"; exit 0
+      fi
+    done < <(find "$T/todo" -name "$pat" | sort); echo "no task" >&2; exit 1 ;;
+  done)  # orch done <id> <agent> <summary...>
+    id="$2"; agent="$3"; shift 3; f="$(find_task "$id")"; [ -n "$f" ] || { echo "not found" >&2; exit 1; }
+    printf '\n## Result (%s, %s)\n%s\n' "$agent" "$(date -Is)" "$*" >> "$f"
+    mv "$f" "$T/done/"; note "DONE $id by $agent: $*" ;;
+  roles) cat "$Q/roles.txt" ;;
+  show)  cat "$(find_task "$2")" ;;
+  *) echo "orch new <role> <title> | ls [status] | claim <agent> [role] | done <id> <agent> <summary> | show <id>
+roles: orch roles (any agent may take any role)";;
+esac

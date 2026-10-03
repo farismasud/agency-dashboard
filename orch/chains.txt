@@ -1,0 +1,7 @@
+frontend	qa,reviewer
+backend	qa,reviewer
+odoo	qa,reviewer
+data	qa,reviewer
+uiux	qa,reviewer
+devops	qa,reviewer
+infra	qa,reviewer
