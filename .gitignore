@@ -1,0 +1,8 @@
+# Safety net at the repo root: keeps these out of git (and out of GitHub Desktop /
+# editor scans) even when a folder is renamed or a branch lacks the per-folder file.
+node_modules/
+.next/
+*.tsbuildinfo
+
+# Local scratch of the superpowers workflow (ledgers, briefs)
+.superpowers/
