@@ -71,9 +71,11 @@ case "${1:-help}" in
     if [ -t 0 ]; then mk_task "$role" "$title" "" "" "" </dev/null; else mk_task "$role" "$title" "" "" ""; fi ;;
   ls)    # orch ls [todo|doing|done]
     find "$T/${2:-}" -name '*.md' 2>/dev/null | sort | sed "s|$T/||" ;;
-  claim) # orch claim <agent> [role]  -> oldest matching todo
-    agent="$2"; pat="*${3:+-$3}.md"
+  claim) # orch claim <agent> [role]  -> oldest matching todo (never the builder's own qa/reviewer/appsec)
+    agent="$2"; pat="*${3:+-$3}.md"; me="$(printf '%s' "$agent" | tr '[:upper:]' '[:lower:]')"
     while IFS= read -r f; do
+      r="$(field "$f" role)"; src="$(field "$f" source_agent | tr '[:upper:]' '[:lower:]')"
+      if [[ " $SELF_CHECKED " == *" $r "* && -n "$src" && "$src" == "$me" ]]; then continue; fi
       d="$T/doing/$(basename "$f")"
       if mv "$f" "$d" 2>/dev/null; then
         printf '\nclaimed_by: %s at %s\n' "$agent" "$(date -Is)" >> "$d"

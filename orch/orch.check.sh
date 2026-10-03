@@ -110,5 +110,20 @@ printf 'backend\tx\nqa\tx\nreviewer\tx\nscribe\tx\n' > "$ORCH_HOME/roles.txt"; c
 s=$("$ORCH" new backend 'spasi' </dev/null); "$ORCH" claim codex backend >/dev/null; "$ORCH" done "$s" codex ok >/dev/null 2>&1
 eq space-followups "$(count todo)" 2
 
+# ---- Task 4: claim rule ----
+fresh
+b=$("$ORCH" new backend 'x' </dev/null); "$ORCH" claim codex backend >/dev/null; "$ORCH" done "$b" codex ok >/dev/null 2>&1
+"$ORCH" claim codex qa >/dev/null 2>&1; eq builder-no-qa "$?" 1
+"$ORCH" claim Codex reviewer >/dev/null 2>&1; eq builder-case-no-reviewer "$?" 1
+eq nothing-moved "$(count doing)" 0
+"$ORCH" claim claude qa >/dev/null 2>&1; eq other-gets-qa "$?" 0
+# claim without a role filter also skips the builder's own review tasks but still takes others
+"$ORCH" claim codex >/dev/null 2>&1; eq builder-any-skips-reviewer "$?" 1
+"$ORCH" claim hermes >/dev/null 2>&1; eq other-any-gets-reviewer "$?" 0
+# non-reviewing roles are unaffected: builder may claim a scribe of its own chain
+fresh
+a=$("$ORCH" new analyst 'r' </dev/null); "$ORCH" claim claude analyst >/dev/null; "$ORCH" done "$a" claude ok >/dev/null 2>&1
+"$ORCH" claim claude scribe >/dev/null 2>&1; eq builder-may-scribe "$?" 0
+
 [ $fail = 0 ] && echo "orch.check: ok"
 exit $fail
