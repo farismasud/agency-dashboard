@@ -50,6 +50,12 @@ func newRouter(store *Store, hub *Hub) *gin.Engine {
 			c.JSON(400, gin.H{"error": err.Error()})
 			return
 		}
+		// Validate before ensureWatched: a rejected event must not create a room
+		// (the roadmap watcher creates one) or leave a watcher goroutine behind.
+		if _, _, err := resolveIdentity(payload.Agent, payload.SubagentType); err != nil {
+			c.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
 		if payload.Project != "" {
 			ensureWatched(payload.Project)
 		}

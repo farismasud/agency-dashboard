@@ -27,7 +27,7 @@ DETAIL=$(echo "$INPUT" | jq -r '
   | if $t == "Bash" then ($i.command // "")
     elif ($t | test("^(Edit|MultiEdit|Write|Read|NotebookEdit)$")) then (($i.file_path // $i.notebook_path // "") | split("/") | last)
     elif $t == "Grep" or $t == "Glob" then ($i.pattern // "")
-    elif $t == "WebFetch" then (($i.url // "") | sub("^[a-z]+://"; "") | split("/") | first)
+    elif $t == "WebFetch" then (($i.url // "") | sub("^[a-z]+://"; "") | sub("^[^@/]*@"; "") | split("/") | first)
     elif $t == "WebSearch" then ($i.query // "")
     elif $t == "Agent" or $t == "Task" then (($i.subagent_type // "agent") + " — " + ($i.description // ""))
     else "" end' 2>/dev/null)

@@ -5,6 +5,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -83,5 +86,30 @@ func TestPostEvents_UnknownAgentIs400(t *testing.T) {
 
 	if w.Code != 400 {
 		t.Fatalf("expected 400, got %d", w.Code)
+	}
+}
+
+// A rejected event must leave no trace: no room, no roadmap watcher. The project
+// dir has a parseable ROADMAP.md, so a watcher started too early would create the room.
+func TestPostEvents_UnknownAgentDoesNotCreateRoom(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	store := NewStore()
+	r := newRouter(store, NewHub())
+
+	project := t.TempDir()
+	if err := os.WriteFile(filepath.Join(project, "ROADMAP.md"), []byte("## M01: Fondasi\nProgress: 40%\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	body := `{"project":` + strconv.Quote(project) + `,"subagent_type":"lead","agent":"gemini"}`
+	req := httptest.NewRequest(http.MethodPost, "/events", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != 400 {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+	if _, ok := store.Snapshot(project); ok {
+		t.Error("rejected event created a room via the roadmap watcher")
 	}
 }

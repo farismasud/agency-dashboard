@@ -16,14 +16,21 @@ LAST_MSG="${AGENCY_LAST_MSG:-}"
 [ -z "$PROJECT" ] && exit 0 # nothing to report without a project path
 [ -z "$SUBAGENT_TYPE" ] && SUBAGENT_TYPE="lead"
 
-# Commands can carry secrets: mask key=value credentials, bearer tokens,
-# URL userinfo and long token-looking strings before anything leaves the machine.
+# Commands can carry secrets: mask bearer tokens, key=value credentials (also quoted
+# values with spaces, python os.environ["KEY"] = "..." and json "password": "..."),
+# curl -u user:pass / mysql -p<pw>, URL userinfo and long token-looking strings
+# before anything leaves the machine. LC_ALL=C keeps the char ranges locale-independent.
 if [ "$TOOL_NAME" = "Bash" ]; then
-  DETAIL=$(printf '%s' "$DETAIL" | LC_ALL=C sed -E \
-    -e 's/(bearer|basic) +[^ ]+/\1 ***/Ig' \
-    -e 's/((pass(word|wd)?|pwd|token|secret|api[_-]?key|access[_-]?key|auth[a-z_]*)["'"'"']?[=: ]+)[^ ]+/\1***/Ig' \
-    -e 's#://[^/@ ]+@#://***@#g' \
-    -e 's/[A-Za-z0-9_+/=-]{32,}/***/g')
+  REDACT=$(cat <<'SED'
+s/(bearer|basic) +[^ ]+/\1 ***/Ig
+s/((pass(word|wd)?|pwd|token|secret|api[_-]?key|access[_-]?key|auth[a-z_]*)[]"']*[=: ]+)("[^"]*"|'[^']*'|[^ ]+)/\1***/Ig
+s/(-u|--user)[ =]+[^ :]+:[^ ]+/\1 ***/g
+s/( -p)[^ -][^ ]*/\1***/g
+s#://[^/@ ]+@#://***@#g
+s/[A-Za-z0-9_+/=-]{32,}/***/g
+SED
+)
+  DETAIL=$(printf '%s' "$DETAIL" | LC_ALL=C sed -E "$REDACT")
 fi
 DETAIL=$(printf '%s' "$DETAIL" | tr '\n\t' '  ' | tr -s ' ' | sed 's/^ //; s/ $//' | LC_ALL=C.UTF-8 cut -c1-80)
 

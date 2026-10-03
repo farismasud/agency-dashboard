@@ -29,5 +29,6 @@ secret_free '{"hook_event_name":"PreToolUse","cwd":"/p","tool_name":"Bash","tool
 secret_free '{"hook_event_name":"PreToolUse","cwd":"/p","tool_name":"Bash","tool_input":{"command":"git clone https://user:pw@host/r"}}' 'user:pw'
 secret_free '{"hook_event_name":"PreToolUse","cwd":"/p","tool_name":"Bash","tool_input":{"command":"echo ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"}}' 'ghp_ABCDEFGHIJ'
 
+secret_free '{"hook_event_name":"PreToolUse","cwd":"/p","tool_name":"WebFetch","tool_input":{"url":"https://user:pw@host/r"}}' 'user:pw'
 [ $fail = 0 ] && echo "agency-notify.check: ok"
 exit $fail

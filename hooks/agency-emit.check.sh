@@ -22,10 +22,26 @@ out=$(AGENCY_DRY_RUN=1 "$EMIT"); rc=$?
 eq noproj-rc "$rc" 0; eq noproj-out "$out" ""
 
 # secrets are masked for Bash, for any agent
-for secret in 'Bearer abc123xyz' 'PGPASSWORD=hunter2' 'API_KEY=sk-live-1' 'https://user:pw@host/r' 'ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'; do
-  out=$(emit AGENCY_AGENT=hermes AGENCY_PROJECT=/p AGENCY_TOOL_NAME=Bash AGENCY_DETAIL="run $secret now")
-  if printf '%s' "$out" | grep -qE 'abc123xyz|hunter2|sk-live-1|user:pw|ghp_ABCDEFGHIJ'; then echo "FAIL leaked [$secret] in [$out]"; fail=1; fi
-done
+leak() { # leak <detail> <needle that must not survive>
+  local out; out=$(emit AGENCY_AGENT=hermes AGENCY_PROJECT=/p AGENCY_TOOL_NAME=Bash AGENCY_DETAIL="$1")
+  if printf '%s' "$out" | grep -qF -- "$2"; then echo "FAIL leaked [$2] from [$1] in [$out]"; fail=1; fi
+}
+leak 'curl -H "Authorization: Bearer abc123xyz" x' abc123xyz
+leak 'PGPASSWORD=hunter2 psql' hunter2
+leak 'export API_KEY=sk-live-1' sk-live-1
+leak 'git clone https://user:pw@host/r' user:pw
+leak 'echo ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789' ghp_ABCDEFGHIJ
+leak 'os.environ["API_KEY"] = "sk-live-2"' sk-live-2
+leak "os.environ['TOKEN']='tok-live-3'" tok-live-3
+leak 'PASSWORD="hunter two" run' 'two"'
+leak '{"password": "hunter three"}' 'three'
+leak 'curl -u admin:hunter4 http://x' hunter4
+leak 'curl --user admin:hunter5 http://x' hunter5
+leak 'mysql -u root -phunter6 db' hunter6
+
+# ordinary commands survive redaction untouched
+out=$(emit AGENCY_PROJECT=/p AGENCY_TOOL_NAME=Bash AGENCY_DETAIL="docker run -p 8080:80 nginx")
+eq benign "$(jq -r .summary <<<"$out")" "Bash: docker run -p 8080:80 nginx"
 
 # long + multibyte detail: 80 chars max, still valid JSON
 long=$(printf 'é%.0s' $(seq 1 200))
