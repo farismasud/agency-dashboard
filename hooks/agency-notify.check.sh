@@ -20,6 +20,9 @@ expect '{"hook_event_name":"PreToolUse","cwd":"/p","tool_name":"WebFetch","agent
 expect '{"hook_event_name":"PreToolUse","cwd":"/p","tool_name":"Agent","tool_input":{"subagent_type":"qa","description":"verify diff"}}' 'lead|Agent: qa — verify diff'
 expect '{"hook_event_name":"SubagentStop","cwd":"/p","agent_type":"qa","last_assistant_message":"All tests pass"}' 'qa|All tests pass'
 
+got=$(AGENCY_DRY_RUN=1 "$HOOK" <<<'{"hook_event_name":"PreToolUse","cwd":"/p","tool_name":"Read","tool_input":{"file_path":"/a/x.go"}}' | jq -r .agent)
+[ "$got" = "claude" ] || { echo "FAIL: agent expected claude got [$got]"; fail=1; }
+
 secret_free '{"hook_event_name":"PreToolUse","cwd":"/p","tool_name":"Bash","tool_input":{"command":"curl -H \"Authorization: Bearer abc123xyz\" x"}}' 'abc123xyz'
 secret_free '{"hook_event_name":"PreToolUse","cwd":"/p","tool_name":"Bash","tool_input":{"command":"PGPASSWORD=hunter2 psql"}}' 'hunter2'
 secret_free '{"hook_event_name":"PreToolUse","cwd":"/p","tool_name":"Bash","tool_input":{"command":"export API_KEY=sk-live-1"}}' 'sk-live-1'
