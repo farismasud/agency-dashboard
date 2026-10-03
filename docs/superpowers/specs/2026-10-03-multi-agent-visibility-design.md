@@ -68,11 +68,12 @@ Satu tempat untuk aturan keamanan; semua tool mewarisinya.
 | `agency-notify-codex.sh` | Hook Codex | Format payload dan pemetaan tool diverifikasi di awal plan. Dipasang lewat jalur resmi hook trust, bukan `--dangerously-bypass-hook-trust`. |
 | agy | Lihat di bawah | Fallback bertingkat. |
 
-**agy, urutan keputusan (spike di awal plan):**
-1. Cek apakah agy atau extension di `~/.antigravity` punya titik hook.
-2. Jika tidak: wrapper di sekitar `agy -p --output-format stream-json` yang mem-parse event.
-3. Jika tidak ada yang layak: agy ditunda dan dicatat sebagai batas di dokumen ini.
-   agy tidak dijanjikan ikut rilis pertama.
+**agy: terpasang lewat plugin hook.** agy mendukung hook lewat plugin (`plugin.json` + `hooks.json`
+bergaya Claude; `agy plugin import` ikut membawa hooks). Bundle ada di `hooks/agy-plugin/`
+(`hooks.json.in` memakai placeholder `@HOOKS_DIR@`), adapternya `hooks/agency-notify-agy.sh`
+yang membungkus adapter Claude dengan `AGENCY_AGENT=agy`. Bentuk payload agy diasumsikan
+Claude-compatible dan nama tool agy belum diverifikasi; nama yang tak dikenal tampil apa adanya.
+Verifikasi live dilakukan di langkah E2E setelah plugin dipasang dengan persetujuan Faris.
 
 ### 4. Instalasi `hooks/install.sh`
 

@@ -1,0 +1,13 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": ".*", "hooks": [{ "type": "command", "command": "@HOOKS_DIR@/agency-notify-agy.sh", "async": true }] }
+    ],
+    "SubagentStart": [
+      { "matcher": ".*", "hooks": [{ "type": "command", "command": "@HOOKS_DIR@/agency-notify-agy.sh", "async": true }] }
+    ],
+    "SubagentStop": [
+      { "matcher": ".*", "hooks": [{ "type": "command", "command": "@HOOKS_DIR@/agency-notify-agy.sh", "async": true }] }
+    ]
+  }
+}
