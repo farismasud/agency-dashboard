@@ -29,6 +29,42 @@ mk_task() {
   } > "$f"
   note "NEW $id [$role] $title"; echo "$id"
 }
+# chain_files <chain> <file...>: those files whose front-matter has "chain: <chain>" (none if no match).
+chain_files() { local c="$1"; shift; grep -lsxF "chain: $c" "$@" 2>/dev/null || true; }
+
+# chain_followups <parent_id> <role> <title> <chain> <agent> <summary>
+# Creates the follow-ups configured in chains.txt, then ONE scribe when the chain has nothing open.
+# Never fails the caller: problems are warnings.
+chain_followups() {
+  local pid="$1" role="$2" title="$3" chain="$4" agent="$5" summary="$6" want r cid g
+  if [ -f "$Q/chains.txt" ]; then
+    want="$(awk -F'\t' -v r="$role" '$1 == r { print $2; exit }' "$Q/chains.txt")"
+    for r in ${want//,/ }; do
+      if cid="$(printf 'Follow-up dari %s (%s), dikerjakan %s.\n\nHasil: %s\n\nDetail: `orch show %s`\n' "$pid" "$title" "$agent" "$summary" "$pid" \
+          | mk_task "$r" "$r: $title" "$chain" "$pid" "$agent")"; then
+        note "CHAIN $cid after $pid"
+      else
+        echo "warn: follow-up '$r' dilewati" >&2
+      fi
+    done
+  fi
+  # ponytail: scribe is a fixed rule, not config; move to chains.txt if a second end-of-chain role appears.
+  [ "$role" = scribe ] && return 0
+  [ -z "$(chain_files "$chain" "$T"/todo/*.md "$T"/doing/*.md)" ] || return 0
+  [ -z "$(chain_files "$chain" "$T"/todo/*-scribe.md "$T"/doing/*-scribe.md "$T"/done/*-scribe.md)" ] || return 0
+  if cid="$({
+        printf 'Rantai %s selesai. Catat hasilnya ke vault (Knowledge/) dan tautkan catatan terkait.\n\nTask dalam rantai:\n' "$chain"
+        printf -- '- %s [%s] %s: %s\n' "$pid" "$role" "$title" "$summary"
+        while IFS= read -r g; do
+          [ "$(field "$g" id)" = "$pid" ] && continue
+          printf -- '- %s [%s] %s: %s\n' "$(field "$g" id)" "$(field "$g" role)" "$(field "$g" title)" "$(awk '/^## Result/ { getline; print; exit }' "$g")"
+        done < <(chain_files "$chain" "$T"/done/*.md)
+      } | mk_task scribe "scribe: $title" "$chain" "$pid" "$agent")"; then
+    note "CHAIN $cid after $pid"
+  else
+    echo "warn: scribe dilewati" >&2
+  fi
+}
 case "${1:-help}" in
   new)   # orch new <role> <title...>   (body from stdin if piped)
     role="$2"; shift 2; title="$*"
@@ -45,9 +81,14 @@ case "${1:-help}" in
       fi
     done < <(find "$T/todo" -name "$pat" | sort); echo "no task" >&2; exit 1 ;;
   done)  # orch done <id> <agent> <summary...>
-    id="$2"; agent="$3"; shift 3; f="$(find_task "$id")"; [ -n "$f" ] || { echo "not found" >&2; exit 1; }
-    printf '\n## Result (%s, %s)\n%s\n' "$agent" "$(date -Is)" "$*" >> "$f"
-    mv "$f" "$T/done/"; note "DONE $id by $agent: $*" ;;
+    id="$2"; agent="$3"; shift 3; summary="$*"; f="$(find_task "$id")"
+    [ -n "$f" ] || { echo "not found" >&2; exit 1; }
+    case "$f" in "$T"/done/*) echo "sudah selesai: $id" >&2; exit 1 ;; esac
+    tid="$(field "$f" id)"; role="$(field "$f" role)"; title="$(field "$f" title)"
+    chain="$(field "$f" chain)"; chain="${chain:-$tid}"
+    printf '\n## Result (%s, %s)\n%s\n\ndone_by: %s\n' "$agent" "$(date -Is)" "$summary" "$agent" >> "$f"
+    mv "$f" "$T/done/"; note "DONE $id by $agent: $summary"
+    chain_followups "$tid" "$role" "$title" "$chain" "$agent" "$summary" || echo "warn: chain follow-up error" >&2 ;;
   roles) cat "$Q/roles.txt" ;;
   show)  cat "$(find_task "$2")" ;;
   *) echo "orch new <role> <title> | ls [status] | claim <agent> [role] | done <id> <agent> <summary> | show <id>

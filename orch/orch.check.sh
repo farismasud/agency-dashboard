@@ -46,5 +46,69 @@ eq root-no-parent "$(grep -c '^parent: ' "$f")" 0
 eq title-literal "$(grep -c '^title: judul: dengan "kutip" & \$(touch /tmp/orch-pwn) `x`$' "$f")" 1
 [ ! -e /tmp/orch-pwn ] || { echo "FAIL: title was executed"; fail=1; rm -f /tmp/orch-pwn; }
 
+# ---- Task 3: follow-ups, scribe at the end, guards ----
+fresh
+root=$("$ORCH" new backend 'api: tambah endpoint' </dev/null)
+"$ORCH" claim codex backend >/dev/null
+"$ORCH" done "$root" codex 'selesai: $(touch /tmp/orch-pwn2) `x`' >/dev/null 2>&1; eq done-rc "$?" 0
+[ ! -e /tmp/orch-pwn2 ] || { echo "FAIL: summary was executed"; fail=1; rm -f /tmp/orch-pwn2; }
+eq chain-todo-count "$(count todo)" 2
+qa=$(ls "$ORCH_HOME"/tasks/todo/*-qa.md); rv=$(ls "$ORCH_HOME"/tasks/todo/*-reviewer.md)
+eq qa-chain "$(grep -c "^chain: $root\$" "$qa")" 1
+eq qa-parent "$(grep -c "^parent: $root\$" "$qa")" 1
+eq qa-source "$(grep -c '^source_agent: codex$' "$qa")" 1
+eq qa-body-summary "$(grep -c 'selesai: \$(touch /tmp/orch-pwn2)' "$qa")" 1
+eq done-by "$(grep -c '^done_by: codex$' "$ORCH_HOME"/tasks/done/*-backend.md)" 1
+eq no-scribe-yet "$(ls "$ORCH_HOME"/tasks/*/*-scribe.md 2>/dev/null | wc -l | tr -d ' ')" 0
+
+# qa done while reviewer still open: no scribe yet
+"$ORCH" claim claude qa >/dev/null; "$ORCH" done "$(basename "$qa" | sed 's/-qa\.md$//')" claude 'lulus' >/dev/null 2>&1
+eq no-scribe-while-open "$(ls "$ORCH_HOME"/tasks/*/*-scribe.md 2>/dev/null | wc -l | tr -d ' ')" 0
+# last one done: exactly one scribe, lists every task
+"$ORCH" claim hermes reviewer >/dev/null; "$ORCH" done "$(basename "$rv" | sed 's/-reviewer\.md$//')" hermes 'bersih' >/dev/null 2>&1
+sc=$(ls "$ORCH_HOME"/tasks/todo/*-scribe.md)
+eq one-scribe "$(ls "$ORCH_HOME"/tasks/*/*-scribe.md | wc -l | tr -d ' ')" 1
+eq scribe-chain "$(grep -c "^chain: $root\$" "$sc")" 1
+eq scribe-lists-root "$(grep -c "^- $root \[backend\]" "$sc")" 1
+eq scribe-lists-qa "$(grep -c 'lulus' "$sc")" 1
+eq scribe-lists-reviewer "$(grep -c 'bersih' "$sc")" 1
+# finishing the scribe spawns nothing
+"$ORCH" claim claude scribe >/dev/null; "$ORCH" done "$(basename "$sc" | sed 's/-scribe\.md$//')" claude 'dicatat' >/dev/null 2>&1
+eq scribe-done-spawns-nothing "$(count todo)" 0
+
+# single analyst task (not in chains.txt): straight to one scribe
+fresh
+a=$("$ORCH" new analyst 'riset' </dev/null); "$ORCH" claim claude analyst >/dev/null; "$ORCH" done "$a" claude 'temuan' >/dev/null 2>&1
+eq analyst-scribe "$(ls "$ORCH_HOME"/tasks/todo/*-scribe.md | wc -l | tr -d ' ')" 1
+
+# done twice / unknown id: fails, creates nothing
+n=$(count todo); "$ORCH" done "$a" claude 'lagi' >/dev/null 2>&1; eq done-twice-rc "$?" 1; eq done-twice-nothing "$(count todo)" "$n"
+"$ORCH" done 00000000-nope claude x >/dev/null 2>&1; eq done-unknown-rc "$?" 1
+
+# unknown role in chains.txt: warns, other follow-ups still created, done exits 0
+fresh; printf 'backend\tnosuchrole,qa\n' > "$ORCH_HOME/chains.txt"
+b=$("$ORCH" new backend 'x' </dev/null); "$ORCH" claim codex backend >/dev/null
+err=$("$ORCH" done "$b" codex ok 2>&1 >/dev/null); eq badrole-rc "$?" 0
+eq badrole-warned "$(printf '%s' "$err" | grep -c "warn: follow-up 'nosuchrole'")" 1
+eq badrole-qa-still "$(ls "$ORCH_HOME"/tasks/todo/*-qa.md | wc -l | tr -d ' ')" 1
+
+# chains.txt missing: no configured follow-ups, scribe rule still applies
+fresh; rm "$ORCH_HOME/chains.txt"
+b=$("$ORCH" new backend 'x' </dev/null); "$ORCH" claim codex backend >/dev/null
+"$ORCH" done "$b" codex ok >/dev/null 2>&1; eq nochains-rc "$?" 0
+eq nochains-only-scribe "$(ls "$ORCH_HOME"/tasks/todo/ | sed 's/.*-//' | tr '\n' ' ')" "scribe.md "
+
+# old-format task (no chain line): claimable, doable, exactly one scribe
+fresh; mkdir -p "$ORCH_HOME/tasks/todo"
+printf -- '---\nid: 20200101-000000-1\nrole: analyst\ntitle: lama\ncreated: x\n---\n# lama\n' > "$ORCH_HOME/tasks/todo/20200101-000000-1-analyst.md"
+"$ORCH" claim claude analyst >/dev/null; "$ORCH" done 20200101-000000-1 claude 'ok' >/dev/null 2>&1; eq old-rc "$?" 0
+eq old-one-scribe "$(ls "$ORCH_HOME"/tasks/todo/*-scribe.md | wc -l | tr -d ' ')" 1
+
+# paths with spaces (the real vault has one)
+ORCH_HOME="$(mktemp -d)/Obsidian Vault/Orchestrator"; export ORCH_HOME; mkdir -p "$ORCH_HOME"; DIRS+=("$(dirname "$(dirname "$ORCH_HOME")")")
+printf 'backend\tx\nqa\tx\nreviewer\tx\nscribe\tx\n' > "$ORCH_HOME/roles.txt"; cp "$HERE/chains.txt" "$ORCH_HOME/chains.txt"
+s=$("$ORCH" new backend 'spasi' </dev/null); "$ORCH" claim codex backend >/dev/null; "$ORCH" done "$s" codex ok >/dev/null 2>&1
+eq space-followups "$(count todo)" 2
+
 [ $fail = 0 ] && echo "orch.check: ok"
 exit $fail
