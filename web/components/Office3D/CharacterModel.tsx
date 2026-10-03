@@ -5,7 +5,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import type { AgentState } from "@/lib/types";
-import { ROLE_RING_COLOR, DEFAULT_RING_COLOR, floorY } from "./layout";
+import { ROLE_RING_COLOR, DEFAULT_RING_COLOR, TOOL_LEAD_STYLE, floorY } from "./layout";
 import {
   buildPath,
   claimSpot,
@@ -47,7 +47,18 @@ export interface PersonLookConfig {
   backpack?: boolean;
 }
 
+// Same silhouette as the Claude lead, tinted per tool so leads read apart at a glance.
+const toolLeadLook = (shirt: string): PersonLookConfig => ({
+  shirt,
+  pants: "#111827",
+  skin: "#d6a07a",
+  hair: "#0c0a09",
+  hairStyle: "short",
+  headphones: true,
+});
+
 export const ROLE_LOOKS: Record<string, PersonLookConfig> = {
+  ...Object.fromEntries(Object.entries(TOOL_LEAD_STYLE).map(([role, style]) => [role, toolLeadLook(style.color)])),
   // Main Claude session
   lead: {
     shirt: "#1f2937", // Charcoal blazer

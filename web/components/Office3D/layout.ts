@@ -1,3 +1,11 @@
+// Leads of non-Claude tools. The backend prefixes their subagent type with the
+// tool name, so these keys are what the rest of the web sees.
+export const TOOL_LEAD_STYLE: Record<string, { label: string; color: string }> = {
+  "codex-lead": { label: "Codex", color: "#10b981" },
+  "agy-lead": { label: "agy", color: "#3b82f6" },
+  "hermes-lead": { label: "Hermes", color: "#ec4899" },
+};
+
 export const ROLE_LABEL: Record<string, string> = {
   pm: "PM",
   analyst: "Analyst",
@@ -8,6 +16,7 @@ export const ROLE_LABEL: Record<string, string> = {
   security: "Security",
   designer: "Designer",
   lead: "Lead",
+  ...Object.fromEntries(Object.entries(TOOL_LEAD_STYLE).map(([role, style]) => [role, style.label])),
 };
 
 export const ROLE_RING_COLOR: Record<string, string> = {
@@ -20,6 +29,7 @@ export const ROLE_RING_COLOR: Record<string, string> = {
   security: "#dc2626",
   designer: "#a855f7",
   lead: "#f59e0b",
+  ...Object.fromEntries(Object.entries(TOOL_LEAD_STYLE).map(([role, style]) => [role, style.color])),
 };
 
 // Building footprint: x ∈ [-10, 10], z ∈ [-7, 7]. Floor 2 walking surface sits at FLOOR2_Y.

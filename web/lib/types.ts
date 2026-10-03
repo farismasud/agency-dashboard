@@ -9,6 +9,7 @@ export interface RoadmapData {
 
 export interface AgentState {
   subagent_type: string;
+  agent?: string;
   display_name: string;
   status: "working" | "idle";
   last_action: string;
@@ -17,6 +18,7 @@ export interface AgentState {
 
 export interface FeedEvent {
   subagent_type: string;
+  agent?: string;
   event_type: string;
   tool_name: string;
   summary: string;

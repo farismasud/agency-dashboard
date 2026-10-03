@@ -5,6 +5,9 @@ import { ROLE_LABEL, ROLE_RING_COLOR } from "./Office3D/layout";
 
 const MODEL_INFO: Record<string, { model: string; desc: string }> = {
   lead: { model: "Main session", desc: "Sesi utama Claude Code: mengarahkan & mendelegasikan tugas ke subagent" },
+  "codex-lead": { model: "Codex CLI", desc: "Sesi utama Codex: mengerjakan task dari antrian orch" },
+  "agy-lead": { model: "Antigravity (agy)", desc: "Sesi utama agy: mengerjakan task dari antrian orch" },
+  "hermes-lead": { model: "Hermes Agent", desc: "Sesi utama Hermes: mengerjakan task dari antrian orch" },
   pm: { model: "Opus (Claude 3.5 / Gemini Pro)", desc: "Project Manager: Task breakdown & Roadmap scheduling" },
   analyst: { model: "Sonnet (Claude 3.5 / Gemini Flash)", desc: "Research & Codebase investigation" },
   security: { model: "Sonnet (Claude 3.5 / Gemini Flash)", desc: "Security, Iron Rules & Migration Guard Auditor" },
