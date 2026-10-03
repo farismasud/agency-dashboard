@@ -125,5 +125,25 @@ fresh
 a=$("$ORCH" new analyst 'r' </dev/null); "$ORCH" claim claude analyst >/dev/null; "$ORCH" done "$a" claude ok >/dev/null 2>&1
 "$ORCH" claim claude scribe >/dev/null 2>&1; eq builder-may-scribe "$?" 0
 
+# ---- Task 5: installer (temporary destinations only) ----
+INSTALL="$HERE/install.sh"
+tmp="$(mktemp -d)"; DIRS+=("$tmp")
+export ORCH_BIN="$tmp/bin/orch"; export ORCH_HOME="$tmp/vault"; mkdir -p "$tmp/bin" "$tmp/vault"
+printf '#!/bin/sh\necho old\n' > "$ORCH_BIN"; chmod +x "$ORCH_BIN"
+"$INSTALL" --check >/dev/null 2>&1; eq check-differs-rc "$?" 1
+before=$(cat "$ORCH_BIN")
+eq check-wrote-nothing "$before" "$(printf '#!/bin/sh\necho old')"
+"$INSTALL" >/dev/null 2>&1; eq install-rc "$?" 0
+cmp -s "$HERE/orch" "$ORCH_BIN"; eq installed-same "$?" 0
+eq backup-made "$(ls "$tmp/bin" | grep -c '^orch\.bak-')" 1
+eq backup-is-old "$(cat "$tmp"/bin/orch.bak-* )" "$(printf '#!/bin/sh\necho old')"
+eq chains-copied "$(cmp -s "$HERE/chains.txt" "$tmp/vault/chains.txt"; echo $?)" 0
+"$INSTALL" --check >/dev/null 2>&1; eq check-same-rc "$?" 0
+# an edited vault chains.txt is never overwritten; reinstall of identical script makes no new backup
+printf 'backend\tqa\n' > "$tmp/vault/chains.txt"; "$INSTALL" >/dev/null 2>&1
+eq chains-kept "$(cat "$tmp/vault/chains.txt")" "$(printf 'backend\tqa')"
+eq no-extra-backup "$(ls "$tmp/bin" | grep -c '^orch\.bak-')" 1
+unset ORCH_BIN
+
 [ $fail = 0 ] && echo "orch.check: ok"
 exit $fail
