@@ -40,8 +40,10 @@ masing-masing, berdasarkan event live dari tool mereka.
 - `EventPayload` mendapat field opsional `agent` (`claude|codex|agy|hermes`).
   Kosong atau tidak ada berarti `claude`. Hook Claude yang sudah terpasang tidak perlu diubah.
 - Nilai `agent` di luar daftar di atas ditolak dengan 400 (hindari label liar di UI).
-- `store.go`: key agent menjadi `agent + ":" + subagent_type`.
-  Dua lead dari tool berbeda dalam satu room tidak tabrakan.
+- `store.go`: untuk `agent` selain `claude`, `subagent_type` yang disimpan diberi awalan nama tool
+  (`codex-lead`, `hermes-lead`). Claude tetap `lead`. Web memakai `subagent_type` sebagai identitas di
+  semua tempat, jadi awalan ini menghindari tabrakan tanpa mengubah key map. `agent` dinormalisasi
+  (trim + lowercase) sebelum divalidasi.
 - `AgentState` dan `RoomState` JSON membawa `agent` agar web bisa membedakan.
 - Kompatibilitas: snapshot/ws lama yang tanpa `agent` dibaca sebagai `claude`.
 

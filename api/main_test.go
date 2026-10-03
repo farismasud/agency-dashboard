@@ -71,3 +71,17 @@ func jsonString(s string) string {
 	b, _ := json.Marshal(s)
 	return string(b)
 }
+
+func TestPostEvents_UnknownAgentIs400(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := newRouter(NewStore(), NewHub())
+
+	req := httptest.NewRequest(http.MethodPost, "/events", strings.NewReader(`{"project":"/p","subagent_type":"lead","agent":"gemini"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != 400 {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+}

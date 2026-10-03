@@ -2,12 +2,15 @@ package main
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"sync"
 	"time"
 )
 
 type Event struct {
 	SubagentType string    `json:"subagent_type"`
+	Agent        string    `json:"agent"`
 	EventType    string    `json:"event_type"`
 	ToolName     string    `json:"tool_name"`
 	Summary      string    `json:"summary"`
@@ -16,6 +19,7 @@ type Event struct {
 
 type AgentState struct {
 	SubagentType string    `json:"subagent_type"`
+	Agent        string    `json:"agent"`
 	DisplayName  string    `json:"display_name"`
 	Status       string    `json:"status"` // "working" | "idle"
 	LastAction   string    `json:"last_action"`
@@ -108,12 +112,36 @@ func IsIdle(lastEventAt, now time.Time, threshold time.Duration) bool {
 	return now.Sub(lastEventAt) >= threshold
 }
 
+var knownAgents = map[string]bool{"claude": true, "codex": true, "agy": true, "hermes": true}
+
+// resolveIdentity validates the tool name and returns it together with the
+// room-unique agent key. Claude keeps its bare subagent type (existing hooks
+// and the web rely on it); other tools are prefixed so their "lead" never
+// collides with Claude's lead in the same project room.
+func resolveIdentity(agent, subagentType string) (string, string, error) {
+	agent = strings.ToLower(strings.TrimSpace(agent))
+	if agent == "" {
+		agent = "claude"
+	}
+	if !knownAgents[agent] {
+		return "", "", fmt.Errorf("unknown agent %q", agent)
+	}
+	if agent == "claude" {
+		return agent, subagentType, nil
+	}
+	return agent, agent + "-" + subagentType, nil
+}
+
 func (s *Store) RecordEvent(payload EventPayload) (*RoomState, error) {
 	if payload.Project == "" {
 		return nil, errors.New("project field is required")
 	}
 	if payload.SubagentType == "" {
 		return nil, errors.New("subagent_type field is required")
+	}
+	agentName, key, err := resolveIdentity(payload.Agent, payload.SubagentType)
+	if err != nil {
+		return nil, err
 	}
 
 	ts, err := time.Parse(time.RFC3339, payload.Timestamp)
@@ -125,19 +153,20 @@ func (s *Store) RecordEvent(payload EventPayload) (*RoomState, error) {
 	defer s.mu.Unlock()
 
 	room := s.getOrCreateRoomLocked(payload.Project)
-	name := AssignName(room, payload.SubagentType)
+	name := AssignName(room, key)
 
-	agent, ok := room.Agents[payload.SubagentType]
+	agent, ok := room.Agents[key]
 	if !ok {
-		agent = &AgentState{SubagentType: payload.SubagentType, DisplayName: name}
-		room.Agents[payload.SubagentType] = agent
+		agent = &AgentState{SubagentType: key, Agent: agentName, DisplayName: name}
+		room.Agents[key] = agent
 	}
 	agent.Status = "working"
 	agent.LastAction = payload.Summary
 	agent.LastEventAt = ts
 
 	room.Feed = append(room.Feed, Event{
-		SubagentType: payload.SubagentType,
+		SubagentType: key,
+		Agent:        agentName,
 		EventType:    payload.EventType,
 		ToolName:     payload.ToolName,
 		Summary:      payload.Summary,
