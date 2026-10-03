@@ -75,13 +75,15 @@ yang membungkus adapter Claude dengan `AGENCY_AGENT=agy`. Bentuk payload agy dia
 Claude-compatible dan nama tool agy belum diverifikasi; nama yang tak dikenal tampil apa adanya.
 Verifikasi live dilakukan di langkah E2E setelah plugin dipasang dengan persetujuan Faris.
 
-### 4. Instalasi `hooks/install.sh`
+### 4. Registrasi `hooks/install.sh`
 
-- Idempoten. Mencetak diff perubahan config sebelum menulis; tidak menimpa hook lain
-  (mis. `graphify hook-guard`, `obsidian-check.sh`).
-- Mendukung `--dry-run`.
-- Menyentuh `~/.claude/settings.json`, `~/.hermes/config.yaml`, config hook Codex.
-  Karena ini file di luar repo, jalankan hanya setelah Faris menyetujui diff.
+- Read-only: melaporkan status registrasi per tool (claude, hermes, codex, agy) dan mencetak snippet
+  yang harus dipasang bila belum ada. Tidak pernah mengedit file config di luar repo; config itu milik
+  Faris dan berisi entri tulisan tangan (mis. `graphify hook-guard`, `obsidian-check.sh`), jadi patch
+  otomatis lebih berisiko daripada menempel snippet.
+- Faris memasang sendiri, atau menyetujui perubahan satu per satu. Lokasi hook Codex
+  (`~/.codex/hooks.json`) masih inferensi dan harus dikonfirmasi sebelum dipasang.
+- Tes: `hooks/install.check.sh` (HOME sementara; memastikan tidak ada file yang ditulis).
 
 ### 5. Web
 
